@@ -1,8 +1,11 @@
 #include <Ethernet2.h>
 #include <PubSubClient.h>
+#include <Arduino.h>
 
 String sTemp = "";
+bool timer_flag = false;
 
+// Valores a actuaizar y cambiar por cada Arduino
 byte mac[] = {0x00, 0x00, 0x00, 0x00, 0x00, 0x02};
 
 IPAddress ip(172, 28, 2, 161);
@@ -20,6 +23,10 @@ PubSubClient mqttClient(ethClient);
 void callback(char *topic, byte *payload, unsigned int length);
 void reconnect();
 
+ISR(TIMER1_COMPA_vect){
+  timer_flag = true;
+}
+
 void setup()
 {
   Serial.begin(115200);
@@ -28,6 +35,20 @@ void setup()
 
   mqttClient.setServer(broker_name, broker_port);
   mqttClient.setCallback(callback);
+
+  // Configuración del timer
+  noInterrupts();
+  TCCR1A = 0;
+  TCCR1B = 0;
+  // modo ctc
+  TCCR1B |= (1 << WGM12); // posam un 1 a nes bit wgmn2 del registre tccr1b
+
+  OCR1A = 62500; // 1 segundo
+
+  TIMSK1 |= (1 << OCIE1A); // output compare match(OCIEnX)
+
+  TCCR1B |= (1 << CS12); // pre-escalado 1:256
+  interrupts();
 
   delay(1500);
 }
@@ -45,7 +66,7 @@ void loop()
 
     // Se publica previamente un mensaje de aviso en caso de que haya más usuarios en el broker
     sTemp = "Topic creado para PONG 3D --> Lab. de sist. basados en microcomputador (21738)";
-    pub_ok = mqttClient.publish("/pong3d/", c_str(sTemp));
+    pub_ok = mqttClient.publish("/pong3d/", sTemp.c_str());
     if (pub_ok)
     {
       Serial.println("Advice message Published");
@@ -54,6 +75,7 @@ void loop()
     {
       Serial.println("Advice message NOT Published");
     }
+    delay(1000);
 
     // Call regularly to process incoming messages
     // and maintain connection with the server
@@ -68,6 +90,31 @@ void callback(char *topic, byte *payload, unsigned int length)
   Serial.print("Message arrived [");
   Serial.print(topic);
   Serial.print("] ");
+
+  if (strcmp(topic, "/pong3d/player1/") == 0)
+  {
+    /*
+    for (int i = 0; i < length; i++) {
+      //Casting a char de cada valor
+      Serial.print((char)payload[i]);
+    }*/
+
+    // Salto de línea
+    // Serial.println();
+  }
+  else if (strcmp(topic, "/pong3d/player2/") == 0)
+  {
+    // switch
+  }
+  else if (strcmp(topic, "/pong3d/ball/") == 0)
+  {
+    // switch
+  }
+  else
+  {
+    Serial.println("Revisa los campos del topic. No reconozco lo que se me ha enviado.");
+    delay(2000);
+  }
 }
 
 void reconnect()
