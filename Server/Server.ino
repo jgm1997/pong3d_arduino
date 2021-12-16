@@ -1,9 +1,8 @@
 #include <Ethernet2.h>
 #include <PubSubClient.h>
 
-char *sTemp = NULL;
+String sTemp = "";
 
-//A partir de aquí, a modificar por cada Arduino
 byte mac[] = {0x00, 0x00, 0x00, 0x00, 0x00, 0x02};
 
 IPAddress ip(172, 28, 2, 161);
@@ -45,8 +44,8 @@ void loop()
     }
 
     // Se publica previamente un mensaje de aviso en caso de que haya más usuarios en el broker
-    sprintf(sTemp, "Topic creado para la P9 de Lab. de sist. basados en microcomputador\n");
-    pub_ok = mqttClient.publish("/jgm/", sTemp);
+    sTemp = "Topic creado para PONG 3D --> Lab. de sist. basados en microcomputador (21738)";
+    pub_ok = mqttClient.publish("/pong3d/", c_str(sTemp));
     if (pub_ok)
     {
       Serial.println("Advice message Published");
