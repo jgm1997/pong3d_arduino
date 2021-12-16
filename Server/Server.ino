@@ -3,6 +3,7 @@
 
 char *sTemp = NULL;
 
+//A partir de aquí, a modificar por cada Arduino
 byte mac[] = {0x00, 0x00, 0x00, 0x00, 0x00, 0x02};
 
 IPAddress ip(172, 28, 2, 161);
