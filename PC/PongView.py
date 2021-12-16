@@ -2,184 +2,21 @@ from PySide6.QtWidgets import *
 from PySide6.QtCore    import *
 from PySide6.QtGui     import *
 
-class Transform3D:
-    def setProyectionPlaneDistance(self, distance):
-        self.proy_dist = distance
-
-    def getProyectionScaleFactor(self, z):
-        return self.proy_dist / (self.proy_dist + z)
-
-    def setProyectionMatrix(self, x, y, z):
-        s = self.getProyectionScaleFactor(z)
-        x_s = x * s
-        y_s = y * s
-        self.transform = QTransform(s, 0, 0, s, x_s, y_s)
-
-    def getProyectedItem(self, item):
-        return self.transform.map(item)
-
-#    def getProyectedItem(self, item, x, y, z):
-#        s = self.getProyectionScaleFactor(z)
-#        x_s = x * s
-#        y_s = y * s
-#        transform = QTransform(s, 0, 0, s, x_s, y_s)
-#        return transform.map(item)
-
-class PaddleItem(QGraphicsItemGroup):
-    def __init__(self, size_x, size_y, color, parent=None):
-        super(PaddleItem, self).__init__()
-        self.setSize(size_x, size_y)
-        self.setColor(color)
-
-    def setColor(self, color):
-        self.color1 = QColor(color)
-        self.color2 = QColor(color)
-        self.color2.setAlpha(60)
-
-    def setSize(self, size_x, size_y):
-        self.size_x = size_x
-        self.size_y = size_y
-
-    def initPaddle(self):
-        half_x = self.size_x / 2
-        half_y = self.size_y / 2
-
-        pen   = QPen  (self.color1)
-        brush = QBrush(self.color2)
-
-        self.rectangle = QGraphicsRectItem(-half_x, -half_y, self.size_x, self.size_y, parent=self)
-        self.rectangle.setPen(pen)
-        self.rectangle.setBrush(brush)
-        self.addToGroup(self.rectangle)
-
-        self.v_line = QGraphicsLineItem(0, -half_y, 0, half_y, parent=self)
-        self.v_line.setPen(pen)
-        self.addToGroup(self.v_line)
-
-        self.h_line = QGraphicsLineItem(-half_x, 0, half_x, 0, parent=self)
-        self.h_line.setPen(pen)
-        self.addToGroup(self.h_line)
-
-    def updatePaddle(self):
-        self.rectangle.setPen(pen)
-        self.rectangle.setBrush(brush)
-        self.v_line.setPen(pen)
-        self.h_line.setPen(pen)
-
-    def clearPaddle(self):
-        self.removeFromGroup(self.rectangle)
-        self.removeFromGroup(self.v_line)
-        self.removeFromGroup(self.h_line)
-
-class BallItem(QGraphicsEllipseItem):
-    def __init__(self, parent=None):
-        super(BallItem, self).__init__()
-
-class PlayfieldItem(QGraphicsItemGroup):
-    # Division lines
-    X_DIVISIONS = 3
-    Y_DIVISIONS = 2
-    Z_DIVISIONS = 4
-
-    def __init__(self, width, height, depth, proy_dist, color, parent=None):
-        super(PlayfieldItem, self).__init__()
-        self.setDimensions(width, height, depth)
-        self.setProyectionPlaneDistance(proy_dist)
-        self.setColor(color)
-
-    def setDimensions(self, width, height, depth):
-        self.width  = width
-        self.height = height
-        self.depth  = depth
-
-    def setProyectionPlaneDistance(self, distance):
-        self.proy_dist = distance
-
-    def setColor(self, color):
-        self.color1 = QColor(color)
-        self.color2 = QColor(color)
-        self.color2.setAlpha(60)
-
-    def initPlayfield(self):
-        half_width = self.width / 2
-        half_height = self.height / 2
-        half_depth = self.depth / 2
-
-        # 3D proyection
-        transform = Transform3D()
-        transform.setProyectionPlaneDistance(self.proy_dist)
-        transform.setProyectionMatrix(0, 0, self.depth)
-
-        self.lines = []
-        self.rects = []
-
-        xdiv_size = self.width  / self.X_DIVISIONS
-        ydiv_size = self.height / self.Y_DIVISIONS
-        zdiv_size = self.depth  / self.Z_DIVISIONS
-
-        pen   = QPen  (self.color1)
-        brush = QBrush(self.color2)
-
-        # X axis divisions
-        x0 = -half_width
-        y0 = -half_height
-        for i in range(self.X_DIVISIONS + 1):
-            # Top
-            p1 = QPointF(x0 + i*xdiv_size, y0)
-            p2 = transform.getProyectedItem(p1)
-            line = QGraphicsLineItem(QLineF(p1, p2), parent=self)
-            line.setPen(pen)
-            self.addToGroup(line)
-            self.lines.append(line)
-
-            # Bottom
-            p1 = QPointF(x0 + i*xdiv_size, -y0)
-            p2 = transform.getProyectedItem(p1)
-            line = QGraphicsLineItem(QLineF(p1, p2), parent=self)
-            line.setPen(pen)
-            self.addToGroup(line)
-            self.lines.append(line)
-
-        # Y axis divisions
-        for i in range(1, self.Y_DIVISIONS):
-            # Left
-            p1 = QPointF(x0, y0 + i*ydiv_size)
-            p2 = transform.getProyectedItem(p1)
-            line = QGraphicsLineItem(QLineF(p1, p2), parent=self)
-            line.setPen(pen)
-            self.addToGroup(line)
-            self.lines.append(line)
-
-            # Right
-            p1 = QPointF(-x0, y0 + i*ydiv_size)
-            p2 = transform.getProyectedItem(p1)
-            line = QGraphicsLineItem(QLineF(p1, p2), parent=self)
-            line.setPen(pen)
-            self.addToGroup(line)
-            self.lines.append(line)
-
-        # Square divisions
-        for i in range(self.Z_DIVISIONS + 1):
-            rectangle = QGraphicsRectItem(x0, y0, self.width, self.height)
-            rectangle.setPen(pen)
-            scale = transform.getProyectionScaleFactor(i*zdiv_size)
-            rectangle.setScale(scale)
-            self.addToGroup(rectangle)
-            self.rects.append(rectangle)
-
-    def updatePlayfield(self):
-        pass
-
-    def clearPlayfield(self):
-        pass
+from Transform3D   import Transform3D
+from BallItem      import BallItem
+from PlayfieldItem import PlayfieldItem
+from PaddleItem    import PaddleItem
 
 class PongView(QGraphicsView):
+
+    PROYDIST = 500
 
     # Playfield constants
     PF_WIDTH    = 500
     PF_HEIGHT   = 300
     PF_DEPTH    = 800
-    PF_PROYDIST = 300
+
+    PF_COLOR    = Qt.green
 
     # Paddle constants
     PADDLE_WIDTH  = PF_WIDTH  / 5
@@ -187,6 +24,10 @@ class PongView(QGraphicsView):
 
     PADDLE1_COLOR = Qt.red
     PADDLE2_COLOR = Qt.blue
+
+    # Ball constants
+    BALL_RADIUS = 5
+    BALL_COLOR  = Qt.white
 
     MARGIN = 10
 
@@ -197,17 +38,37 @@ class PongView(QGraphicsView):
         self.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
         self.setRenderHint(QPainter.Antialiasing)
 
-        # Pong items
-        self.paddle1 = PaddleItem(self.PADDLE_WIDTH, self.PADDLE_HEIGHT, self.PADDLE1_COLOR)
-        self.paddle1.initPaddle()
+        # Transform 3D
+        self.t3d = Transform3D()
+        self.t3d.setProyectionPlaneDistance(self.PROYDIST)
 
-        self.paddle2 = PaddleItem(self.PADDLE_WIDTH, self.PADDLE_HEIGHT, self.PADDLE2_COLOR)
+        # Pong items
+        self.paddle1 = PaddleItem(self.PADDLE1_COLOR)
+        self.paddle1.setColor(self.PADDLE1_COLOR)
+        self.paddle1.setSize(self.PADDLE_WIDTH, self.PADDLE_HEIGHT)
+        self.paddle1.setTransform3D(self.t3d)
+        self.paddle1.initPaddle()
+        self.paddle1.setPosition(0, 0, 0)
+
+        self.paddle2 = PaddleItem()
+        self.paddle2.setColor(self.PADDLE2_COLOR)
+        self.paddle2.setSize(self.PADDLE_WIDTH, self.PADDLE_HEIGHT)
+        self.paddle2.setTransform3D(self.t3d)
         self.paddle2.initPaddle()
-        self.paddle2.setScale(PongView.getProyectionScaleFactor(PongView.PF_DEPTH))
+        self.paddle2.setPosition(0, 0, self.PF_DEPTH)
 
         self.ball = BallItem()
+        self.ball.setRadius(self.BALL_RADIUS)
+        self.ball.setColor(self.BALL_COLOR)
+        self.ball.setGuideRectangle(self.PF_WIDTH, self.PF_HEIGHT)
+        self.ball.setTransform3D(self.t3d)
+        self.ball.initBall()
+        self.ball.setPosition(0, 0, self.PF_DEPTH/2)
 
-        self.playfield = PlayfieldItem(self.PF_WIDTH, self.PF_HEIGHT, self.PF_DEPTH, self.PF_PROYDIST, Qt.green, parent=self)
+        self.playfield = PlayfieldItem()
+        self.playfield.setDimensions(self.PF_WIDTH, self.PF_HEIGHT, self.PF_DEPTH)
+        self.playfield.setColor(self.PF_COLOR)
+        self.playfield.setTransform3D(self.t3d)
         self.playfield.initPlayfield()
 
         self._initScreen()
@@ -223,6 +84,7 @@ class PongView(QGraphicsView):
 
         self.scene.addItem(self.playfield)
         self.scene.addItem(self.paddle2)
+        self.scene.addItem(self.ball)
         self.scene.addItem(self.paddle1)
 
         self.resetTransform()
@@ -242,11 +104,17 @@ class PongView(QGraphicsView):
         return PongView.PF_PROYDIST / (PongView.PF_PROYDIST + depth)
 
     def keyPressEvent(self, event):
-        if   event.key() == Qt.Key_Up:
-            pass
-        elif event.key() == Qt.Key_Down:
-            pass
-        elif event.key() == Qt.Key_Left:
-            pass
-        elif event.key() == Qt.Key_Right:
-            pass
+        if event.key() == Qt.Key_Up:
+            self.ball.move(0, -10, 0)
+        if event.key() == Qt.Key_Down:
+            self.ball.move(0, 10, 0)
+        if event.key() == Qt.Key_Right:
+            self.ball.move(10, 0, 0)
+        if event.key() == Qt.Key_Left:
+            self.ball.move(-10, 0, 0)
+        if event.key() == Qt.Key_W:
+            self.ball.move(0, 0, 10)
+        if event.key() == Qt.Key_S:
+            self.ball.move(0, 0, -10)
+
+
