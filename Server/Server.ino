@@ -3,7 +3,7 @@
 #include <Arduino.h>
 
 String sTemp = "";
-bool timer_flag = false;
+volatile bool timer_flag = false;
 
 // Valores a actuaizar y cambiar por cada Arduino
 byte mac[] = {0x00, 0x00, 0x00, 0x00, 0x00, 0x02};
@@ -15,7 +15,7 @@ IPAddress mydns(8, 8, 8, 8);
 
 const char broker_name[] = "tom.uib.es"; //"labauto.sytes.net";
 const unsigned int broker_port = 1883;   // 8080;
-const char client_id[] = "jgm";          // Update
+const char client_id[] = "jgm562";       // Update
 
 EthernetClient ethClient;
 PubSubClient mqttClient(ethClient);
@@ -23,7 +23,8 @@ PubSubClient mqttClient(ethClient);
 void callback(char *topic, byte *payload, unsigned int length);
 void reconnect();
 
-ISR(TIMER1_COMPA_vect){
+ISR(TIMER1_COMPA_vect)
+{
   timer_flag = true;
 }
 
@@ -35,21 +36,21 @@ void setup()
 
   mqttClient.setServer(broker_name, broker_port);
   mqttClient.setCallback(callback);
+  /*
+    // Configuración del timer
+    noInterrupts();
+    TCCR1A = 0;
+    TCCR1B = 0;
+    // modo ctc
+    TCCR1B |= (1 << WGM12); // posam un 1 a nes bit wgmn2 del registre tccr1b
 
-  // Configuración del timer
-  noInterrupts();
-  TCCR1A = 0;
-  TCCR1B = 0;
-  // modo ctc
-  TCCR1B |= (1 << WGM12); // posam un 1 a nes bit wgmn2 del registre tccr1b
+    OCR1A = 62500; // 1 segundo
 
-  OCR1A = 62500; // 1 segundo
+    TIMSK1 |= (1 << OCIE1A); // output compare match(OCIEnX)
 
-  TIMSK1 |= (1 << OCIE1A); // output compare match(OCIEnX)
-
-  TCCR1B |= (1 << CS12); // pre-escalado 1:256
-  interrupts();
-
+    TCCR1B |= (1 << CS12); // pre-escalado 1:256
+    interrupts();
+  */
   delay(1500);
 }
 
@@ -65,17 +66,28 @@ void loop()
     }
 
     // Se publica previamente un mensaje de aviso en caso de que haya más usuarios en el broker
-    sTemp = "Topic creado para PONG 3D --> Lab. de sist. basados en microcomputador (21738)";
+    sTemp = "PONG 3D --> Lab. de sist. basados en microcomputador (21738)";
     pub_ok = mqttClient.publish("/pong3d/", sTemp.c_str());
     if (pub_ok)
     {
-      Serial.println("Advice message Published");
+      Serial.println("\nAdvice message Published");
     }
     else
     {
-      Serial.println("Advice message NOT Published");
+      Serial.println("\nAdvice message NOT Published");
     }
-    delay(1000);
+
+    // Publicación de mensajes de juego
+    sTemp = "Jugador 1 conectado";
+    pub_ok = mqttClient.publish("/pong3d/player1", sTemp.c_str());
+    if (pub_ok)
+    {
+      Serial.println("\nPlayer 1 connected");
+    }
+    else
+    {
+      Serial.println("\nWaiting for player 1...");
+    }
 
     // Call regularly to process incoming messages
     // and maintain connection with the server
@@ -91,20 +103,29 @@ void callback(char *topic, byte *payload, unsigned int length)
   Serial.print(topic);
   Serial.print("] ");
 
-  if (strcmp(topic, "/pong3d/player1/") == 0)
+  if (strcmp(topic, "/pong3d/player1") == 0)
   {
-    /*
-    for (int i = 0; i < length; i++) {
-      //Casting a char de cada valor
+
+    for (int i = 0; i < length; i++)
+    {
+      // Casting a char de cada valor para comprobación en monitor serie
       Serial.print((char)payload[i]);
-    }*/
+    }
 
     // Salto de línea
     // Serial.println();
   }
-  else if (strcmp(topic, "/pong3d/player2/") == 0)
+  else if (strcmp(topic, "/pong3d/player2") == 0)
   {
     // switch
+    for (int i = 0; i < length; i++)
+    {
+      // Casting a char de cada valor para comprobación en monitor serie
+      Serial.print((char)payload[i]);
+    }
+
+    // Salto de línea
+    // Serial.println();
   }
   else if (strcmp(topic, "/pong3d/ball/") == 0)
   {
@@ -128,6 +149,15 @@ void reconnect()
     if (mqttClient.connect(client_id))
     {
       Serial.println("connected");
+      if (mqttClient.subscribe("/pong3d/player2"))
+      {
+        Serial.println("Suscrito al topico: /pong3d/player2");
+      }
+
+      if (mqttClient.subscribe("/pong3d/player1"))
+      {
+        Serial.println("Suscrito al topico: /pong3d/player2");
+      }
     }
     else
     {
