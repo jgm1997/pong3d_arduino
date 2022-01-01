@@ -18,11 +18,12 @@ class PaddleItem(QGraphicsItemGroup):
         self.size_x = size_x
         self.size_y = size_y
 
-    def setPosition(self, x, y, z):
+    def setPosition(self, x, y, z=None):
         self.x = x
         self.y = y
-        self.z = z
-        self.t3d.setProyectionMatrix(x, y, z)
+        if z is not None:
+            self.z = z
+        self.t3d.setProyectionMatrix(x, y, self.z)
         self.setTransform(self.t3d)
 
     def move(self, dx, dy, dz):
