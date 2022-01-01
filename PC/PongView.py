@@ -6,6 +6,7 @@ from Transform3D   import Transform3D
 from BallItem      import BallItem
 from PlayfieldItem import PlayfieldItem
 from PaddleItem    import PaddleItem
+from MqttClient    import MqttClient
 
 class PongView(QGraphicsView):
 
@@ -42,7 +43,7 @@ class PongView(QGraphicsView):
         self.t3d = Transform3D()
         self.t3d.setProyectionPlaneDistance(self.PROYDIST)
 
-        # Pong items
+        # Paddle 1
         self.paddle1 = PaddleItem(self.PADDLE1_COLOR)
         self.paddle1.setColor(self.PADDLE1_COLOR)
         self.paddle1.setSize(self.PADDLE_WIDTH, self.PADDLE_HEIGHT)
@@ -50,6 +51,9 @@ class PongView(QGraphicsView):
         self.paddle1.initPaddle()
         self.paddle1.setPosition(0, 0, 0)
 
+        self.paddle1_new_coords = {}
+
+        # Paddle 2
         self.paddle2 = PaddleItem()
         self.paddle2.setColor(self.PADDLE2_COLOR)
         self.paddle2.setSize(self.PADDLE_WIDTH, self.PADDLE_HEIGHT)
@@ -57,6 +61,9 @@ class PongView(QGraphicsView):
         self.paddle2.initPaddle()
         self.paddle2.setPosition(0, 0, self.PF_DEPTH)
 
+        self.paddle2_new_coords = {}
+
+        # Ball
         self.ball = BallItem()
         self.ball.setRadius(self.BALL_RADIUS)
         self.ball.setColor(self.BALL_COLOR)
@@ -65,11 +72,22 @@ class PongView(QGraphicsView):
         self.ball.initBall()
         self.ball.setPosition(0, 0, self.PF_DEPTH/2)
 
+        self.ball_new_coords = {}
+
+        # Playfield
         self.playfield = PlayfieldItem()
         self.playfield.setDimensions(self.PF_WIDTH, self.PF_HEIGHT, self.PF_DEPTH)
         self.playfield.setColor(self.PF_COLOR)
         self.playfield.setTransform3D(self.t3d)
         self.playfield.initPlayfield()
+
+        # MQTT Client
+        self.client = MqttClient(self)
+        self.client.stateChanged.connect(self.on_stateChanged)
+        self.client.messageSignal.connect(self.on_messageSignal)
+
+        self.client.hostname = "tom.uib.es"
+        self.client.connectToHost()
 
         self._initScreen()
 
@@ -116,5 +134,66 @@ class PongView(QGraphicsView):
             self.ball.move(0, 0, 10)
         if event.key() == Qt.Key_S:
             self.ball.move(0, 0, -10)
+
+    ############################################################################
+    # MQTT events                                                              #
+    ############################################################################
+    @Slot(int)
+    def on_stateChanged(self, state):
+        if state == MqttClient.Connected:
+            self.client.subscribe("/pong3d/ball/x")
+            self.client.subscribe("/pong3d/ball/y")
+            self.client.subscribe("/pong3d/ball/z")
+            self.client.subscribe("/pong3d/paddle1/x")
+            self.client.subscribe("/pong3d/paddle1/y")
+            self.client.subscribe("/pong3d/paddle2/x")
+            self.client.subscribe("/pong3d/paddle2/y")
+
+    @Slot(str, str)
+    def on_messageSignal(self, topic, msg):
+        try:
+            val = float(msg)
+            subt  = topic.split('/')
+            item  = subt[-2]
+            coord = subt[-1]
+            if item == 'ball':
+                if   coord == 'x':
+                    self.ball_new_coords['x'] = val
+                elif coord == 'y':
+                    self.ball_new_coords['y'] = val
+                elif coord == 'z':
+                    self.ball_new_coords['z'] = val
+
+                # Cambia las coordenadas de la bola cuando las 3 hayan sido leídas
+                if self.ball_new_coords.keys() == {'x', 'y', 'z'}:
+                    x = self.ball_new_coords['x']
+                    y = self.ball_new_coords['y']
+                    z = self.ball_new_coords['z']
+                    self.ball.setPosition(x, y, z)
+                    self.ball_new_coords.clear()
+            elif item[:-1] == 'paddle':
+                # Selecciona la paleta
+                if   item[-1] == '1':
+                    paddle = self.paddle1
+                    new_coords = self.paddle1_new_coords
+                elif item[-1] == '2':
+                    paddle = self.paddle2
+                    new_coords = self.paddle2_new_coords
+
+                # Guarda la coordenada
+                if   coord == 'x':
+                    new_coords['x'] = val
+                elif coord == 'y':
+                    new_coords['y'] = val
+
+                # Cambia las coordenadas de la paleta cuando las 2 hayan sido leídas
+                if new_coords.keys() == {'x', 'y'}:
+                    x = new_coords['x']
+                    y = new_coords['y']
+                    paddle.setPosition(x, y)
+                    new_coords.clear()
+
+        except ValueError:
+            print('error: Value sent at "{}" is not a number'.format(topic))
 
 
