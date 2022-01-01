@@ -1,7 +1,7 @@
 # Source code modified: https://stackoverflow.com/a/52639291
 
-from PySide2.QtCore    import *
-from PySide2.QtWidgets import *
+from PySide6.QtCore    import *
+from PySide6.QtWidgets import *
 import paho.mqtt.client as mqtt
 
 class MqttClient(QObject):
