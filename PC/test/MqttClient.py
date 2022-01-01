@@ -179,6 +179,7 @@ class Widget(QWidget):
         try:
             val = float(msg)
             subt = topic.split('/')[-1]
+            print(topic, msg)
             if   subt == 'x':
                 self.lcd_number_x.display(val)
             elif subt == 'y':
@@ -193,11 +194,11 @@ if __name__ == '__main__':
     import sys
 
     print("Puedes modificar los valores publicando en los siguientes topics:")
-    print("- /pong3d/x")
-    print("- /pong3d/y")
-    print("- /pong3d/z")
+    print("- /pong3d/ball/x")
+    print("- /pong3d/ball/y")
+    print("- /pong3d/ball/z")
 
     app = QApplication(sys.argv)
     w = Widget()
     w.show()
-    sys.exit(app.exec_())
+    sys.exit(app.exec())
