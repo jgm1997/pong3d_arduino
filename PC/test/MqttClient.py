@@ -179,7 +179,6 @@ class Widget(QWidget):
         try:
             val = float(msg)
             subt = topic.split('/')[-1]
-            print(topic, msg)
             if   subt == 'x':
                 self.lcd_number_x.display(val)
             elif subt == 'y':
