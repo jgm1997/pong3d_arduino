@@ -1,6 +1,9 @@
 #include <Ethernet2.h>
 #include <PubSubClient.h>
 #include <Arduino.h>
+#include <Keypad.h>
+#include <LCD.h>
+#include <Joystick.h>
 
 //Joystick
 #define JOY_X A0
