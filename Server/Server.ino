@@ -1,6 +1,14 @@
 #include <Ethernet2.h>
 #include <PubSubClient.h>
 #include <Arduino.h>
+#include <Keypad.h>
+#include <LCD.h>
+#include <Joystick.h>
+
+//Joystick
+#define JOY_X A0
+#define JOY_Y A1
+#define JOY_SW A2
 
 String sTemp = "";
 volatile bool timer_flag = false;
