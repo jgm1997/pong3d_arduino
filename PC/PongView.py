@@ -149,10 +149,10 @@ class PongView(QGraphicsView):
             self.client.subscribe("/pong3d/paddle2/x")
             self.client.subscribe("/pong3d/paddle2/y")
 
-    @Slot(str, str)
+    @Slot(str, bytes)
     def on_messageSignal(self, topic, msg):
         try:
-            val = float(msg)
+            val = int.from_bytes(msg, "little", signed=True)
             subt  = topic.split('/')
             item  = subt[-2]
             coord = subt[-1]
@@ -195,5 +195,46 @@ class PongView(QGraphicsView):
 
         except ValueError:
             print('error: Value sent at "{}" is not a number'.format(topic))
+
+    def test(self):
+        self.BOUND_UP    =   self.PF_HEIGHT / 2
+        self.BOUND_DOWN  = - self.PF_HEIGHT / 2
+        self.BOUND_RIGHT =   self.PF_WIDTH  / 2
+        self.BOUND_LEFT  = - self.PF_WIDTH  / 2
+        self.BOUND_FRONT =   0
+        self.BOUND_BACK  =   self.PF_DEPTH
+
+        self.x = 0
+        self.y = 0
+        self.z = self.PF_DEPTH / 2
+
+        self.v_x = 4
+        self.v_y = 4
+        self.v_z = 4
+
+        self.FPS = 30
+        self.DELAY = 1000 / self.FPS
+
+        self._delay(self.DELAY)
+
+    def _update(self):
+        self.x += self.v_x
+        self.y += self.v_y
+        self.z += self.v_z
+        if self.x - self.BALL_RADIUS < self.BOUND_LEFT or self.BOUND_RIGHT < self.x + self.BALL_RADIUS:
+            self.v_x *= -1
+        if self.y - self.BALL_RADIUS < self.BOUND_DOWN or self.BOUND_UP < self.y + self.BALL_RADIUS:
+            self.v_y *= -1
+        if self.z - self.BALL_RADIUS < self.BOUND_FRONT or self.BOUND_BACK < self.z + self.BALL_RADIUS:
+            self.v_z *= -1
+
+        self.ball.setPosition(self.x, self.y, self.z)
+
+    def _delay(self, milliseconds):
+        loop = QEventLoop(self)
+        t = QTimer(self)
+        t.timeout.connect(self._update)
+        t.start(milliseconds)
+        loop.exec_()
 
 

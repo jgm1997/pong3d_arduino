@@ -22,7 +22,7 @@ class MqttClient(QObject):
     cleanSessionChanged = Signal(bool)
     protocolVersionChanged = Signal(int)
 
-    messageSignal = Signal(str, str)
+    messageSignal = Signal(str, bytes)
 
     def __init__(self, parent=None):
         super(MqttClient, self).__init__(parent)
@@ -126,16 +126,13 @@ class MqttClient(QObject):
     #################################################################
     # callbacks
     def on_message(self, mqttc, obj, msg):
-        mstr = msg.payload.decode("utf8")
-        self.messageSignal.emit(msg.topic, mstr)
+        self.messageSignal.emit(msg.topic, msg.payload)
 
     def on_connect(self, *args):
-        # print("on_connect", args)
         self.state = MqttClient.Connected
         self.connected.emit()
 
     def on_disconnect(self, *args):
-        # print("on_disconnect", args)
         self.state = MqttClient.Disconnected
         self.disconnected.emit()
 

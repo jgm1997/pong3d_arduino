@@ -15,6 +15,7 @@ class MainWindow(QMainWindow):
         self.setCentralWidget(self.pongView)
 
 
+
 if __name__ == "__main__":
     app = QApplication(sys.argv)
 
