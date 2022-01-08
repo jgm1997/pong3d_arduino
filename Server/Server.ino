@@ -2,6 +2,11 @@
 #include <PubSubClient.h>
 #include <Arduino.h>
 
+//Joystick
+#define JOY_X A0
+#define JOY_Y A1
+#define JOY_SW A2
+
 String sTemp = "";
 volatile bool timer_flag = false;
 
