@@ -91,6 +91,9 @@ class PongView(QGraphicsView):
 
         self._initScreen()
 
+        self.pos = QPointF(0,0);
+        self.prev = QPointF(0,0);
+
     def _initScreen(self):
         self.scene = QGraphicsScene(parent=self)
 
@@ -118,22 +121,14 @@ class PongView(QGraphicsView):
     def resizeEvent(self, event):
         self.fitInView(self.scene.sceneRect(), Qt.KeepAspectRatio)
 
-    def getProyectionScaleFactor(depth):
-        return PongView.PF_PROYDIST / (PongView.PF_PROYDIST + depth)
+    def mouseMoveEvent(self, event):
+        self.prev = self.pos
+        self.pos = self.mapToScene(event.pos())
 
-    def keyPressEvent(self, event):
-        if event.key() == Qt.Key_Up:
-            self.ball.move(0, -10, 0)
-        if event.key() == Qt.Key_Down:
-            self.ball.move(0, 10, 0)
-        if event.key() == Qt.Key_Right:
-            self.ball.move(10, 0, 0)
-        if event.key() == Qt.Key_Left:
-            self.ball.move(-10, 0, 0)
-        if event.key() == Qt.Key_W:
-            self.ball.move(0, 0, 10)
-        if event.key() == Qt.Key_S:
-            self.ball.move(0, 0, -10)
+        self.client.m_client.publish("/pong3d/paddle1/x", int(self.pos.x()).to_bytes(4, 'little', signed=True))
+        self.client.m_client.publish("/pong3d/paddle1/y", int(self.pos.y()).to_bytes(4, 'little', signed=True))
+        self.client.m_client.publish("/pong3d/paddle2/x", int(self.pos.x()).to_bytes(4, 'little', signed=True))
+        self.client.m_client.publish("/pong3d/paddle2/y", int(self.pos.y()).to_bytes(4, 'little', signed=True))
 
     ############################################################################
     # MQTT events                                                              #
@@ -141,17 +136,27 @@ class PongView(QGraphicsView):
     @Slot(int)
     def on_stateChanged(self, state):
         if state == MqttClient.Connected:
-            self.client.subscribe("/pong3d/ball/x")
-            self.client.subscribe("/pong3d/ball/y")
-            self.client.subscribe("/pong3d/ball/z")
-            self.client.subscribe("/pong3d/paddle1/x")
-            self.client.subscribe("/pong3d/paddle1/y")
-            self.client.subscribe("/pong3d/paddle2/x")
-            self.client.subscribe("/pong3d/paddle2/y")
+            self.client.subscribe("/pong3d/+/x")
+            self.client.subscribe("/pong3d/+/y")
+            self.client.subscribe("/pong3d/+/z")
+            self.client.subscribe("/pong3d/+/request")
 
     @Slot(str, bytes)
     def on_messageSignal(self, topic, msg):
         try:
+            if topic == "/pong3d/paddle1/request":
+                self.client.m_client.publish("/pong3d/paddle1/response/x", int(self.pos.x()).to_bytes(4, 'little', signed=True))
+                self.client.m_client.publish("/pong3d/paddle1/response/y", int(self.pos.y()).to_bytes(4, 'little', signed=True))
+                self.client.m_client.publish("/pong3d/paddle1/response/vx", (0).to_bytes(4, 'little', signed=True))
+                self.client.m_client.publish("/pong3d/paddle1/response/vy", (0).to_bytes(4, 'little', signed=True))
+                return
+            elif topic == "/pong3d/paddle2/request":
+                self.client.m_client.publish("/pong3d/paddle2/response/x", int(self.pos.x()).to_bytes(4, 'little', signed=True))
+                self.client.m_client.publish("/pong3d/paddle2/response/y", int(self.pos.y()).to_bytes(4, 'little', signed=True))
+                self.client.m_client.publish("/pong3d/paddle2/response/vx", (0).to_bytes(4, 'little', signed=True))
+                self.client.m_client.publish("/pong3d/paddle2/response/vy", (0).to_bytes(4, 'little', signed=True))
+                return
+
             val = int.from_bytes(msg, "little", signed=True)
             subt  = topic.split('/')
             item  = subt[-2]
