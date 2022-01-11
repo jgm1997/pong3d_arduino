@@ -20,12 +20,12 @@ void Joystick::init() {
 
 int Joystick::PosX() {
 
-	return (analogRead(pin_vrx) - 500);
+	return (analogRead(pin_vrx));
 }
 
 int Joystick::PosY() {
 
-	return (analogRead(pin_vry) - 500);
+	return (analogRead(pin_vry));
 }
 
 int Joystick::swStatus() {
