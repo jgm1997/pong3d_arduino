@@ -73,29 +73,30 @@ void setup()
 void loop()
 {
     bool pub_ok;
+    int status = joy.swStatus();
+    uint32_t pos = 0;
 
-    while (true)
+    if (status == 1)
     {
-        if (!mqttClient.connected())
+        while (true)
         {
-            reconnect();
-        }
+            if (!mqttClient.connected())
+            {
+                reconnect();
+            }
 
-        // Se publica previamente un mensaje de aviso en caso de que haya más usuarios en el broker
-        sTemp = "PONG 3D --> Lab. de sist. basados en microcomputador (21738)";
-        pub_ok = mqttClient.publish("/pong3d/", sTemp.c_str());
-        if (pub_ok)
-        {
-            Serial.println("\nAdvice message Published");
-        }
-        else
-        {
-            Serial.println("\nAdvice message NOT Published");
-        }
+            // Se publica previamente un mensaje de aviso en caso de que haya más usuarios en el broker
+            sTemp = "PONG 3D --> Lab. de sist. basados en microcomputador (21738)";
+            pub_ok = mqttClient.publish("/pong3d/", sTemp.c_str());
+            if (pub_ok)
+            {
+                Serial.println("\nAdvice message Published");
+            }
+            else
+            {
+                Serial.println("\nAdvice message NOT Published");
+            }
 
-        // El jugador entra en la partida
-        if (joy.swStatus() == 0)
-        {
             sTemp = "Jugador 1 conectado";
             pub_ok = mqttClient.publish("/pong3d/player", sTemp.c_str());
             if (pub_ok)
@@ -106,49 +107,50 @@ void loop()
             {
                 Serial.println("\nWaiting for player 1...");
             }
-        }
 
-        // Envío de posición actual de X e Y del joystick
-        sTemp = String(joy.PosX());
-        pub_ok = mqttClient.publish("/pong3d/player/x", sTemp.c_str());
-        if (pub_ok)
-        {
-            Serial.println("\nX = " + String(joy.PosX()));
-        }
-        else
-        {
-            Serial.println("\nWaiting for player 1...");
-        }
+            // Envío de posición actual de X e Y del joystick
+            pos = joy.PosX();
+            sTemp = String(pos, 2);
+            pub_ok = mqttClient.publish("/pong3d/player/x", sTemp.c_str());
+            if (pub_ok)
+            {
+                Serial.println("\nX = " + String(joy.PosX()));
+            }
+            else
+            {
+                Serial.println("\nWaiting for player 1...");
+            }
 
-        sTemp = String(joy.PosY());
-        pub_ok = mqttClient.publish("/pong3d/player/y", sTemp.c_str());
-        if (pub_ok)
-        {
-            Serial.println("\nY = " + String(joy.PosY()));
-        }
-        else
-        {
-            Serial.println("\nWaiting for player 1...");
-        }
+            pos = joy.PosY();
+            sTemp = String(joy.PosY(), 2);
+            pub_ok = mqttClient.publish("/pong3d/player/y", sTemp.c_str());
+            if (pub_ok)
+            {
+                Serial.println("\nY = " + String(joy.PosY()));
+            }
+            else
+            {
+                Serial.println("\nWaiting for player 1...");
+            }
 
-        sTemp = String(joy.swStatus());
-        pub_ok = mqttClient.publish("/pong3d/player/sw", sTemp.c_str());
-        if (pub_ok)
-        {
-            Serial.println("\nSW = " + String(joy.swStatus()));
-        }
-        else
-        {
-            Serial.println("\nWaiting for player 1...");
-        }
+            sTemp = String(joy.swStatus());
+            pub_ok = mqttClient.publish("/pong3d/player/sw", sTemp.c_str());
+            if (pub_ok)
+            {
+                Serial.println("\nSW = " + String(joy.swStatus()));
+            }
+            else
+            {
+                Serial.println("\nWaiting for player 1...");
+            }
 
-        // Call regularly to process incoming messages
-        // and maintain connection with the server
-        mqttClient.loop();
+            // Call regularly to process incoming messages
+            // and maintain connection with the server
+            mqttClient.loop();
 
-        delay(1000);
+            delay(1000);
+        }
     }
-    delay(1000);
 }
 
 void callback(char *topic, byte *payload, unsigned int length)
