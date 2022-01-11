@@ -1,8 +1,9 @@
+#include <stdlib.h>
 #include <Ethernet2.h>
 #include <PubSubClient.h>
 #include <Arduino.h>
-#include "../Server/Keypad.h"
-#include "../Server/LCD.h"
+//#include "lib/Keypad.h"
+//#include "lib/LCD.h"
 #include "Joystick.h"
 
 // Joystick definition
@@ -18,8 +19,11 @@ volatile bool timer_flag = false;
 // Valores a actuaizar y cambiar por cada Arduino
 byte mac[] = {0x00, 0x00, 0x00, 0x00, 0x00, 0x02};
 
-IPAddress ip(172, 28, 2, 161);
-IPAddress gw(172, 28, 2, 1);
+IPAddress ip(192, 168, 0, 20);
+IPAddress gw(192, 168, 0, 1);
+
+// IPAddress ip(172, 28, 2, 161);
+// IPAddress gw(172, 28, 2, 1);
 
 IPAddress mydns(8, 8, 8, 8);
 
@@ -105,7 +109,7 @@ void loop()
         }
 
         // Envío de posición actual de X e Y del joystick
-        itoa(joy.PosX(), sTemp.c_str());
+        sTemp = String(joy.PosX());
         pub_ok = mqttClient.publish("/pong3d/player/x", sTemp.c_str());
         if (pub_ok)
         {
@@ -116,7 +120,7 @@ void loop()
             Serial.println("\nWaiting for player 1...");
         }
 
-        itoa(joy.PosY(), sTemp.c_str());
+        sTemp = String(joy.PosY());
         pub_ok = mqttClient.publish("/pong3d/player/y", sTemp.c_str());
         if (pub_ok)
         {
@@ -127,7 +131,7 @@ void loop()
             Serial.println("\nWaiting for player 1...");
         }
 
-        itoa(joy.swStatus(), sTemp.c_str());
+        sTemp = String(joy.swStatus());
         pub_ok = mqttClient.publish("/pong3d/player/sw", sTemp.c_str());
         if (pub_ok)
         {
