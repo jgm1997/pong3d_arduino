@@ -121,15 +121,6 @@ class PongView(QGraphicsView):
     def resizeEvent(self, event):
         self.fitInView(self.scene.sceneRect(), Qt.KeepAspectRatio)
 
-    def mouseMoveEvent(self, event):
-        self.prev = self.pos
-        self.pos = self.mapToScene(event.pos())
-
-        self.client.m_client.publish("/pong3d/paddle1/x", int(self.pos.x()).to_bytes(4, 'little', signed=True))
-        self.client.m_client.publish("/pong3d/paddle1/y", int(self.pos.y()).to_bytes(4, 'little', signed=True))
-        self.client.m_client.publish("/pong3d/paddle2/x", int(self.pos.x()).to_bytes(4, 'little', signed=True))
-        self.client.m_client.publish("/pong3d/paddle2/y", int(self.pos.y()).to_bytes(4, 'little', signed=True))
-
     ############################################################################
     # MQTT events                                                              #
     ############################################################################
@@ -139,24 +130,10 @@ class PongView(QGraphicsView):
             self.client.subscribe("/pong3d/+/x")
             self.client.subscribe("/pong3d/+/y")
             self.client.subscribe("/pong3d/+/z")
-            self.client.subscribe("/pong3d/+/request")
 
     @Slot(str, bytes)
     def on_messageSignal(self, topic, msg):
         try:
-            if topic == "/pong3d/paddle1/request":
-                self.client.m_client.publish("/pong3d/paddle1/response/x", int(self.pos.x()).to_bytes(4, 'little', signed=True))
-                self.client.m_client.publish("/pong3d/paddle1/response/y", int(self.pos.y()).to_bytes(4, 'little', signed=True))
-                self.client.m_client.publish("/pong3d/paddle1/response/vx", (0).to_bytes(4, 'little', signed=True))
-                self.client.m_client.publish("/pong3d/paddle1/response/vy", (0).to_bytes(4, 'little', signed=True))
-                return
-            elif topic == "/pong3d/paddle2/request":
-                self.client.m_client.publish("/pong3d/paddle2/response/x", int(self.pos.x()).to_bytes(4, 'little', signed=True))
-                self.client.m_client.publish("/pong3d/paddle2/response/y", int(self.pos.y()).to_bytes(4, 'little', signed=True))
-                self.client.m_client.publish("/pong3d/paddle2/response/vx", (0).to_bytes(4, 'little', signed=True))
-                self.client.m_client.publish("/pong3d/paddle2/response/vy", (0).to_bytes(4, 'little', signed=True))
-                return
-
             val = int.from_bytes(msg, "little", signed=True)
             subt  = topic.split('/')
             item  = subt[-2]
