@@ -4,13 +4,17 @@
 // PUBLIC METHODS
 Pong3D::Pong3D(){
     this->gameState = GAME_WAITING;
+
     this->playersConnected = 0;
     this->playersReady = 0;
+
     this->ballPosition = coord_t{0, 0, 0};
     this->ballVelocity = velocity_t{1, 1, 1};
     this->ballRadius   = 10;
+
     this->paddleWidth  = 500/5;
     this->paddleHeight = 300/5;
+
     this->target       = 6;
     this->initialBallSpeed = 8;
 }
@@ -99,19 +103,19 @@ void Pong3D::invertVelocityZ(){
 void Pong3D::fixPosition(){
     const int32_t r = (int32_t) ballRadius;
     if(ballPosition.x - r < BOUND_LEFT)
-        ballPosition.x = 2*BOUND_LEFT - ballPosition.x;
-    else if(ballPosition.x + r> BOUND_RIGHT)
-        ballPosition.x = 2*BOUND_RIGHT - ballPosition.x;
+        ballPosition.x = 2*BOUND_LEFT - ballPosition.x + r;
+    else if(ballPosition.x + r > BOUND_RIGHT)
+        ballPosition.x = 2*BOUND_RIGHT - ballPosition.x - r;
     
     if(ballPosition.y - r < BOUND_DOWN)
-        ballPosition.y = 2*BOUND_DOWN - ballPosition.y;
+        ballPosition.y = 2*BOUND_DOWN - ballPosition.y + r;
     else if(ballPosition.y + r > BOUND_UP)
-        ballPosition.y = 2*BOUND_UP - ballPosition.y;
+        ballPosition.y = 2*BOUND_UP - ballPosition.y - r;
     
     if(ballPosition.z - r < BOUND_FRONT)
-        ballPosition.z = 2*BOUND_FRONT - ballPosition.z;
+        ballPosition.z = 2*BOUND_FRONT - ballPosition.z + r;
     else if(ballPosition.z + r > BOUND_BACK)
-        ballPosition.z = 2*BOUND_BACK - ballPosition.z;
+        ballPosition.z = 2*BOUND_BACK - ballPosition.z - r;
 }
 
 bool Pong3D::computePaddleCollision(int32_t px, int32_t py, int32_t pvx, int32_t pvy, uint8_t paddle){

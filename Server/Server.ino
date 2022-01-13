@@ -163,7 +163,7 @@ void loop() {
                     
                     switch(game_event) {
                         // Movimiento natural de la pelota
-                        case NO_EVENT:
+                        case NO_EVENT: case BALL_COLLISION:
                             coords = p3d.getBallPosition();
 
                             memcpy(msg, &coords.x, 4);
