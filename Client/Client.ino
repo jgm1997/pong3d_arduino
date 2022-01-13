@@ -14,7 +14,9 @@
 Joystick joy(JS_X, JS_Y, JS_SW);
 
 String sTemp = "";
+uint8_t *msg;
 volatile bool timer_flag = false;
+bool pub_ok;
 
 // Valores a actuaizar y cambiar por cada Arduino
 byte mac[] = {0x00, 0x00, 0x00, 0x00, 0x00, 0x02};
@@ -42,10 +44,16 @@ ISR(TIMER1_COMPA_vect)
     timer_flag = true;
 }
 
+#define sensibilidad 0.02
+
+int32_t x = 0;
+int32_t y = 0;
+
 void setup()
 {
     Serial.begin(115200);
 
+    msg = (uint8_t *)malloc(8);
     Ethernet.begin(mac, ip, mydns, gw);
 
     mqttClient.setServer(broker_name, broker_port);
@@ -72,69 +80,41 @@ void setup()
 
 void loop()
 {
-    bool pub_ok;
-    int status = joy.swStatus();
-    uint32_t pos = 0;
-
-    if (status == 1)
+    // para el 2º jugador, publicar en topic pong3d/paddle2
+    while (true)
     {
-        while (true)
+        if (!mqttClient.connected())
         {
-            if (!mqttClient.connected())
-            {
-                reconnect();
-            }
+            reconnect();
+        }
 
-            // Se publica previamente un mensaje de aviso en caso de que haya más usuarios en el broker
-            sTemp = "PONG 3D --> Lab. de sist. basados en microcomputador (21738)";
-            pub_ok = mqttClient.publish("/pong3d/", sTemp.c_str());
-            if (pub_ok)
-            {
-                Serial.println("\nAdvice message Published");
-            }
-            else
-            {
-                Serial.println("\nAdvice message NOT Published");
-            }
+        x += (int32_t)(joy.PosX() * sensibilidad);
+        memcpy(msg, &x, 4);
+        pub_ok = mqttClient.publish("/pong3d/paddle1/x", msg, 4);
+        if (pub_ok)
+        {
+            Serial.println("\nX = " + String(joy.PosX()));
+        }
+        else
+        {
+            Serial.println("\nWaiting for player 1...");
+        }
 
-            sTemp = "Jugador 1 conectado";
-            pub_ok = mqttClient.publish("/pong3d/player", sTemp.c_str());
-            if (pub_ok)
-            {
-                Serial.println("\nPlayer 1 connected");
-            }
-            else
-            {
-                Serial.println("\nWaiting for player 1...");
-            }
+        y += (int32_t)(joy.PosY() * sensibilidad);
+        memcpy(msg, &y, 4);
+        pub_ok = mqttClient.publish("/pong3d/paddle1/y", msg, 4);
+        if (pub_ok)
+        {
+            Serial.println("\nY = " + String(joy.PosY()));
+        }
+        else
+        {
+            Serial.println("\nWaiting for player 1...");
+        }
 
-            // Envío de posición actual de X e Y del joystick
-            pos = joy.PosX();
-            sTemp = String(pos, 2);
-            pub_ok = mqttClient.publish("/pong3d/player/x", sTemp.c_str());
-            if (pub_ok)
-            {
-                Serial.println("\nX = " + String(joy.PosX()));
-            }
-            else
-            {
-                Serial.println("\nWaiting for player 1...");
-            }
-
-            pos = joy.PosY();
-            sTemp = String(joy.PosY(), 2);
-            pub_ok = mqttClient.publish("/pong3d/player/y", sTemp.c_str());
-            if (pub_ok)
-            {
-                Serial.println("\nY = " + String(joy.PosY()));
-            }
-            else
-            {
-                Serial.println("\nWaiting for player 1...");
-            }
-
-            sTemp = String(joy.swStatus());
-            pub_ok = mqttClient.publish("/pong3d/player/sw", sTemp.c_str());
+        if (joy.swStatus())
+        {
+            pub_ok = mqttClient.publish("/pong3d/ready", "");
             if (pub_ok)
             {
                 Serial.println("\nSW = " + String(joy.swStatus()));
@@ -143,14 +123,19 @@ void loop()
             {
                 Serial.println("\nWaiting for player 1...");
             }
-
-            // Call regularly to process incoming messages
-            // and maintain connection with the server
-            mqttClient.loop();
-
-            delay(1000);
         }
+
+        // Call regularly to process incoming messages
+        // and maintain connection with the server
+        mqttClient.loop();
+        mqttClient.loop();
+        mqttClient.loop();
+        mqttClient.loop();
+        mqttClient.loop();
+
+        delay(50);
     }
+    delay(1000);
 }
 
 void callback(char *topic, byte *payload, unsigned int length)
@@ -159,7 +144,7 @@ void callback(char *topic, byte *payload, unsigned int length)
     Serial.print(topic);
     Serial.print("] ");
 
-    if (strcmp(topic, "/pong3d/player") == 0)
+    if (strcmp(topic, "/pong3d/paddle1") == 0)
     {
 
         for (int i = 0; i < length; i++)
@@ -171,7 +156,7 @@ void callback(char *topic, byte *payload, unsigned int length)
         // Salto de línea
         // Serial.println();
     }
-    else if (strcmp(topic, "/pong3d/player/x") == 0)
+    else if (strcmp(topic, "/pong3d/paddle1/x") == 0)
     {
         // switch
         for (int i = 0; i < length; i++)
@@ -183,7 +168,7 @@ void callback(char *topic, byte *payload, unsigned int length)
         // Salto de línea
         // Serial.println();
     }
-    else if (strcmp(topic, "/pong3d/player/y") == 0)
+    else if (strcmp(topic, "/pong3d/paddle1/y") == 0)
     {
         // switch
         for (int i = 0; i < length; i++)
@@ -192,7 +177,32 @@ void callback(char *topic, byte *payload, unsigned int length)
             Serial.print((char)payload[i]);
         }
     }
-    else if (strcmp(topic, "pong3d/player/sw") == 0)
+    else if (strcmp(topic, "/pong3d/paddle1/request") == 0)
+    {
+
+        memcpy(msg, &x, 4);
+        pub_ok = mqttClient.publish("/pong3d/paddle1/response/x", msg, 4);
+        if (pub_ok)
+        {
+            Serial.println("\nX = " + String(joy.PosX()));
+        }
+        else
+        {
+            Serial.println("\nWaiting for player 1...");
+        }
+
+        memcpy(msg, &y, 4);
+        pub_ok = mqttClient.publish("/pong3d/paddle1/response/y", msg, 4);
+        if (pub_ok)
+        {
+            Serial.println("\nY = " + String(joy.PosY()));
+        }
+        else
+        {
+            Serial.println("\nWaiting for player 1...");
+        }
+    }
+    else if (strcmp(topic, "/pong3d/ready") == 0)
     {
         for (int i = 0; i < length; i++)
         {
@@ -218,22 +228,29 @@ void reconnect()
         if (mqttClient.connect(client_id))
         {
             Serial.println("connected");
-            if (mqttClient.subscribe("/pong3d/player"))
+            /*
+            if (mqttClient.subscribe("/pong3d/paddle1"))
             {
                 Serial.println("Suscrito al topico: /pong3d/player");
             }
 
-            if (mqttClient.subscribe("/pong3d/player/x"))
+            if (mqttClient.subscribe("/pong3d/paddle1/x"))
             {
                 Serial.println("Suscrito al topico: /pong3d/player/x");
             }
 
-            if (mqttClient.subscribe("/pong3d/player/y"))
+            if (mqttClient.subscribe("/pong3d/paddle1/y"))
             {
                 Serial.println("Suscrito al topico: /pong3d/player/y");
             }
 
-            if (mqttClient.subscribe("/pong3d/player/sw"))
+            if (mqttClient.subscribe("/pong3d/ready"))
+            {
+                Serial.println("Suscrito al topico: /pong3d/player/sw");
+            }
+            */
+
+            if (mqttClient.subscribe("/pong3d/paddle1/request"))
             {
                 Serial.println("Suscrito al topico: /pong3d/player/sw");
             }
