@@ -12,9 +12,44 @@ class MainWindow(QMainWindow):
 
         self.setWindowTitle('Pong3D')
         self.pongView = PongView(parent=self)
-        self.setCentralWidget(self.pongView)
 
+        # Botones de cambio de vista
+        self.left = QPushButton("Paleta 1")
+        self.right = QPushButton("Paleta 2")
 
+        self.left.clicked.connect(self.setViewPaddle1)
+        self.right.clicked.connect(self.setViewPaddle2)
+
+        # Etiqueta vista actual
+        self.label = QLabel("Seleccionar vista")
+        self.label.setAlignment(Qt.AlignHCenter|Qt.AlignVCenter)
+
+        # Widget selección de vista
+        hlayout = QHBoxLayout()
+        hlayout.addWidget(self.left)
+        hlayout.addWidget(self.label)
+        hlayout.addWidget(self.right)
+        hlayout.setContentsMargins(2, 2, 2, 2)
+
+        viewSelector = QWidget(parent=self)
+        viewSelector.setLayout(hlayout)
+
+        # Widget central
+        vlayout = QVBoxLayout()
+        vlayout.addWidget(self.pongView)
+        vlayout.addWidget(viewSelector)
+        vlayout.setContentsMargins(2, 2, 2, 2)
+
+        centralWidget = QWidget(parent=self)
+        centralWidget.setLayout(vlayout)
+
+        self.setCentralWidget(centralWidget)
+
+    def setViewPaddle1(self):
+        self.pongView.setViewPaddle1()
+
+    def setViewPaddle2(self):
+        self.pongView.setViewPaddle2()
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)

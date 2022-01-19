@@ -26,6 +26,16 @@ class PaddleItem(QGraphicsItemGroup):
         self.t3d.setProyectionMatrix(x, y, self.z)
         self.setTransform(self.t3d)
 
+    def setZ(self, z):
+        self.z = z
+        self.t3d.setProyectionMatrix(self.x, self.y, self.z)
+        self.setTransform(self.t3d)
+
+    def invertX(self):
+        self.x *= -1
+        self.t3d.setProyectionMatrix(self.x, self.y, self.z)
+        self.setTransform(self.t3d)
+
     def move(self, dx, dy, dz):
         self.x += dx
         self.y += dy

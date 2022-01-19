@@ -81,6 +81,13 @@ class PongView(QGraphicsView):
         self.playfield.setTransform3D(self.t3d)
         self.playfield.initPlayfield()
 
+        # Auxiliary
+        self.sign = 1
+        self.depth = 0
+
+        self.pos = QPointF(0,0);
+        self.prev = QPointF(0,0);
+
         # MQTT Client
         self.client = MqttClient(self)
         self.client.stateChanged.connect(self.on_stateChanged)
@@ -90,9 +97,6 @@ class PongView(QGraphicsView):
         self.client.connectToHost()
 
         self._initScreen()
-
-        self.pos = QPointF(0,0);
-        self.prev = QPointF(0,0);
 
     def _initScreen(self):
         self.scene = QGraphicsScene(parent=self)
@@ -117,6 +121,45 @@ class PongView(QGraphicsView):
 
     def _clearScreen(self):
         pass
+
+    def setViewPaddle1(self):
+        if self.sign < 0:
+            self.paddle1.invertX()
+            self.paddle1.setZ(0)
+            self.paddle1.setZValue(3)
+
+            self.paddle2.invertX()
+            self.paddle2.setZ(self.PF_DEPTH)
+            self.paddle2.setZValue(1)
+
+            self.ball.invertX()
+            self.ball.invertZ(self.PF_DEPTH/2)
+
+        self.sign = 1
+        self.depth = 0
+
+
+    def setViewPaddle2(self):
+        if self.sign > 0:
+            self.paddle1.invertX()
+            self.paddle1.setZ(self.PF_DEPTH)
+            self.paddle1.setZValue(1)
+
+            self.paddle2.invertX()
+            self.paddle2.setZ(0)
+            self.paddle2.setZValue(3)
+
+            self.ball.invertX()
+            self.ball.invertZ(self.PF_DEPTH/2)
+
+        self.sign = -1
+        self.depth = self.PF_DEPTH
+
+    def keyPressEvent(self, event):
+        if event.key() == Qt.Key_Left:
+            self.setViewPaddle1()
+        if event.key() == Qt.Key_Right:
+            self.setViewPaddle2()
 
     def resizeEvent(self, event):
         self.fitInView(self.scene.sceneRect(), Qt.KeepAspectRatio)
@@ -148,9 +191,9 @@ class PongView(QGraphicsView):
 
                 # Cambia las coordenadas de la bola cuando las 3 hayan sido leídas
                 if self.ball_new_coords.keys() == {'x', 'y', 'z'}:
-                    x = self.ball_new_coords['x']
+                    x = self.sign * self.ball_new_coords['x']
                     y = self.ball_new_coords['y']
-                    z = self.ball_new_coords['z']
+                    z = self.depth + self.sign * self.ball_new_coords['z']
                     self.ball.setPosition(x, y, z)
                     self.ball_new_coords.clear()
             elif item[:-1] == 'paddle':
@@ -170,7 +213,7 @@ class PongView(QGraphicsView):
 
                 # Cambia las coordenadas de la paleta cuando las 2 hayan sido leídas
                 if new_coords.keys() == {'x', 'y'}:
-                    x = new_coords['x']
+                    x = self.sign * new_coords['x']
                     y = new_coords['y']
                     paddle.setPosition(x, y)
                     new_coords.clear()

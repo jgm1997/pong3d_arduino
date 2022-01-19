@@ -30,6 +30,25 @@ class BallItem(QGraphicsItemGroup):
         self.t3d.setProyectionMatrix(0, 0, z)
         self.guideRect.setTransform(self.t3d)
 
+    def invertX(self):
+        self.x *= -1
+        self.t3d.setProyectionMatrix(self.x, self.y, self.z)
+        self.ellipse.setTransform(self.t3d)
+
+    def invertZ(self, zplane=0):
+        self.z -= zplane
+        self.z *= -1
+        self.z += zplane
+
+        self.t3d.setProyectionMatrix(self.x, self.y, self.z)
+        self.ellipse.setTransform(self.t3d)
+
+        self.t3d.setProyectionMatrix(0, 0, self.z)
+        self.guideRect.setTransform(self.t3d)
+
+    def getZ(self):
+        return self.z
+
     def move(self, dx, dy, dz):
         self.x += dx
         self.y += dy
