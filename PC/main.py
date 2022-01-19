@@ -5,12 +5,22 @@ from PySide6.QtCore import *
 from PySide6.QtGui import *
 
 from PongView import PongView
+from Helper import Helper
 
 class MainWindow(QMainWindow):
     def __init__(self, parent=None):
         super(MainWindow, self).__init__()
 
         self.setWindowTitle('Pong3D')
+
+        # Menu bar
+        self.menu = self.menuBar()
+        testing = self.menu.addMenu("Testing")
+        aux = QAction("MQTT Auxiliar", self)
+        aux.triggered.connect(self.openHelperWindow)
+        testing.addAction(aux)
+
+        # Widget de visualización del juego
         self.pongView = PongView(parent=self)
 
         # Botones de cambio de vista
@@ -50,6 +60,10 @@ class MainWindow(QMainWindow):
 
     def setViewPaddle2(self):
         self.pongView.setViewPaddle2()
+
+    def openHelperWindow(self):
+        helper = Helper()
+        helper.show()
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
