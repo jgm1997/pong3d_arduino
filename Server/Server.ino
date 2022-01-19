@@ -37,7 +37,7 @@ IPAddress mydns(8, 8, 8, 8);
 // Broker information
 const char broker_name[] = "tom.uib.es"; //"labauto.sytes.net";
 const unsigned int broker_port = 1883;   // 8080;
-const char client_id[] = "svv459";       // Update
+const char client_id[] = "svv";          // Update
 
 EthernetClient ethClient;
 PubSubClient mqttClient(ethClient);
@@ -57,7 +57,7 @@ void reconnect();
 #define TOPIC_PF_HEIGHT "/pong3d/playfield/height"
 #define TOPIC_PF_DEPTH  "/pong3d/playfield/depth"
 
-#define TOPIC_ASSIGN "/pong3d/assign"
+#define TOPIC_ASSIGN "/pong3d/player_id"
 
 // Subscribe topics
 #define TOPIC_RESPONSE  "/pong3d/+/response/#"
@@ -238,7 +238,7 @@ void callback(char *topic, byte *payload, unsigned int length) {
         
     // Se da por hecho que params[0] == "pong3d"
     
-    if(
+    if( // Token is /pong3d/connected
         strcmp(params[1], "connected") == 0 && 
         p3d.getGameState() == GAME_WAITING
     ) {
@@ -246,7 +246,7 @@ void callback(char *topic, byte *payload, unsigned int length) {
         pub_ok = mqttClient.publish(TOPIC_ASSIGN, &id, 1);
         Serial.println("Jugador conectado");
 
-    } else if(
+    } else if( // Token is /pong3d/ready
         strcmp(params[1], "ready") == 0 &&
         p3d.getGameState() == GAME_READY
     ) {
@@ -254,7 +254,7 @@ void callback(char *topic, byte *payload, unsigned int length) {
         Serial.print("Jugador listo: ");
         Serial.println((uint8_t) payload[0]);
 
-    } else if(
+    } else if( // Token is /pong3d/+/response
         strcmp(params[2], "response") == 0 &&
         p3d.getGameState() == GAME_PLAYING
     ) {
