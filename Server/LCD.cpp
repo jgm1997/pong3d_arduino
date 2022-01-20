@@ -130,6 +130,23 @@ void LCD::delete_char() {
 	}
 }
 
+void LCD::delete_row(uint8_t row){
+	switch(row){
+		case 1:
+			moveCursor(1,17);
+			for(int i=0; i<LCD_DISPLAY_COLS; i++){
+				delete_char();
+			}
+			break;	
+		case 2:
+			moveCursor(2,17);
+			for(int i=0; i<LCD_DISPLAY_COLS; i++){
+				delete_char();
+			}
+			break;
+	}
+}
+
 /*******************************************************************************
  ** Read
  ******************************************************************************/
@@ -206,6 +223,28 @@ char* LCD::readString(){
 	string[i] = '\0';
 	
 	return string;
+}
+
+char* LCD::readSecondRow(){
+
+	char* string = (char*) malloc(LCD_DISPLAY_COLS + 1);
+	
+	char current = '\0';
+	uint8_t i = 0, col;
+	uint8_t row = 2;
+
+	while(i < LCD_DISPLAY_COLS) {
+		col = i+1;
+		current = readChar(row, col);
+		if(current == ' ') break;
+		string[i++] = current;
+
+	}
+
+	string[i] = '\0';
+	
+	return string;
+
 }
 
 /*******************************************************************************

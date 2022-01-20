@@ -42,10 +42,12 @@ public:
 
 	void print(char c);
 	void delete_char();
+	void delete_row(uint8_t row);
 	
 	// Read
 	char readChar(uint8_t row, uint8_t col);
 	char* readString();
+	char* readSecondRow();
 
 	// Display control
 	void on(lcd_cursor_state_t cursor_state, lcd_blink_state_t blink_state);
