@@ -49,7 +49,7 @@ char characters[KEYPAD_ROWS*KEYPAD_COLS] = {
 #define ARRAYSIZE 16
 #define STATES 7
 
-//Arrays con los nombres de los estados
+//Arrays con los nombres de los estados.
 char inicial[ARRAYSIZE] = "Menu";
 char width[ARRAYSIZE] = "Width:";
 char height[ARRAYSIZE] = "Height:";
