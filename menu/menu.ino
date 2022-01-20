@@ -220,7 +220,7 @@ void action(uint8_t key) {
       //Si pulsamos OK 2 otra vez, confirmamos el valor introducido
       case ACTION_OK:
         oks = oks + 1;
-        Serial.println(oks);
+        //Serial.println(oks);
         if(oks%2 == 1){
           lcd.clear();
           lcd.print(states[5]);
