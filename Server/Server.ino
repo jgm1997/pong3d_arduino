@@ -242,8 +242,9 @@ void callback(char *topic, byte *payload, unsigned int length) {
         strcmp(params[1], "connected") == 0 && 
         p3d.getGameState() == GAME_WAITING
     ) {
-        uint8_t id = p3d.playerConnected();
-        pub_ok = mqttClient.publish(TOPIC_ASSIGN, &id, 1);
+        char* id = (char *) malloc(2);
+        id = p3d.playerConnected() == 0 ? "1" : "2";
+        pub_ok = mqttClient.publish(TOPIC_ASSIGN, id);
         Serial.println("Jugador conectado");
 
     } else if( // Token is /pong3d/ready
