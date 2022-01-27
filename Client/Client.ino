@@ -13,9 +13,9 @@
 
 Joystick joy(JS_X, JS_Y, JS_SW);
 
-String sTemp = "";
+String sTemp = "", player_id = "/pong3d/";
 uint8_t *msg;
-volatile bool timer_flag = false;
+volatile bool timer_flag = false, conn = false;
 bool pub_ok;
 
 // Valores a actuaizar y cambiar por cada Arduino
@@ -88,9 +88,21 @@ void loop()
             reconnect();
         }
 
+        if (!conn)
+        {
+            pub_ok = mqttClient.publish("/pong3d/connected", "");
+            if (pub_ok) {
+                Serial.println("Player connected");
+                conn = true;
+            }
+            else {
+                Serial.println("Player not connected");
+            }
+        }
+
         x += (int32_t)(joy.PosX() * sensibilidad);
         memcpy(msg, &x, 4);
-        pub_ok = mqttClient.publish("/pong3d/paddle1/x", msg, 4);
+        pub_ok = mqttClient.publish((player_id + "/x").c_str(), msg, 4);
         if (pub_ok)
         {
             Serial.println("\nX = " + String(joy.PosX()));
@@ -102,7 +114,7 @@ void loop()
 
         y += (int32_t)(joy.PosY() * sensibilidad);
         memcpy(msg, &y, 4);
-        pub_ok = mqttClient.publish("/pong3d/paddle1/y", msg, 4);
+        pub_ok = mqttClient.publish((player_id + "/y").c_str(), msg, 4);
         if (pub_ok)
         {
             Serial.println("\nY = " + String(joy.PosY()));
@@ -144,19 +156,20 @@ void callback(char *topic, byte *payload, unsigned int length)
     Serial.print(topic);
     Serial.print("] ");
 
-    if (strcmp(topic, "/pong3d/paddle1") == 0)
+    if (strcmp(topic, "/pong3d/player_id") == 0)
     {
 
         for (int i = 0; i < length; i++)
         {
             // Casting a char de cada valor para comprobación en monitor serie
             Serial.print((char)payload[i]);
+            player_id += "paddle" + (char)payload[i];
         }
 
         // Salto de línea
         // Serial.println();
     }
-    else if (strcmp(topic, "/pong3d/paddle1/x") == 0)
+    else if (strcmp(topic, (player_id + "/x").c_str()) == 0)
     {
         // switch
         for (int i = 0; i < length; i++)
@@ -168,7 +181,7 @@ void callback(char *topic, byte *payload, unsigned int length)
         // Salto de línea
         // Serial.println();
     }
-    else if (strcmp(topic, "/pong3d/paddle1/y") == 0)
+    else if (strcmp(topic, (player_id + "/y").c_str()) == 0)
     {
         // switch
         for (int i = 0; i < length; i++)
@@ -177,11 +190,11 @@ void callback(char *topic, byte *payload, unsigned int length)
             Serial.print((char)payload[i]);
         }
     }
-    else if (strcmp(topic, "/pong3d/paddle1/request") == 0)
+    else if (strcmp(topic, (player_id + "/request").c_str()) == 0)
     {
 
         memcpy(msg, &x, 4);
-        pub_ok = mqttClient.publish("/pong3d/paddle1/response/x", msg, 4);
+        pub_ok = mqttClient.publish((player_id + "/response/x").c_str(), msg, 4);
         if (pub_ok)
         {
             Serial.println("\nX = " + String(joy.PosX()));
@@ -192,7 +205,7 @@ void callback(char *topic, byte *payload, unsigned int length)
         }
 
         memcpy(msg, &y, 4);
-        pub_ok = mqttClient.publish("/pong3d/paddle1/response/y", msg, 4);
+        pub_ok = mqttClient.publish((player_id + "/response/y").c_str(), msg, 4);
         if (pub_ok)
         {
             Serial.println("\nY = " + String(joy.PosY()));
@@ -250,9 +263,9 @@ void reconnect()
             }
             */
 
-            if (mqttClient.subscribe("/pong3d/paddle1/request"))
+            if (mqttClient.subscribe("/pong3d/player_id"))
             {
-                Serial.println("Suscrito al topico: /pong3d/player/sw");
+                Serial.println("Suscrito al topico: /pong3d/player_id");
             }
         }
         else
