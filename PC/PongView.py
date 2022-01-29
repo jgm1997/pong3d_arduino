@@ -96,7 +96,15 @@ class PongView(QGraphicsView):
         self.client.hostname = "tom.uib.es"
         self.client.connectToHost()
 
+        self.mqttState = None
+
+        # Testing
+        self.paddle1Control = False
+        self.paddle2Control = False
+
         self._initScreen()
+
+        self.loop(50)
 
     def _initScreen(self):
         self.scene = QGraphicsScene(parent=self)
@@ -133,6 +141,7 @@ class PongView(QGraphicsView):
             self.paddle2.setZValue(1)
 
             self.ball.invertX()
+            self.ball.setZValue(2)
             self.ball.invertZ(self.PF_DEPTH/2)
 
         self.sign = 1
@@ -150,6 +159,7 @@ class PongView(QGraphicsView):
             self.paddle2.setZValue(3)
 
             self.ball.invertX()
+            self.ball.setZValue(2)
             self.ball.invertZ(self.PF_DEPTH/2)
 
         self.sign = -1
@@ -164,6 +174,11 @@ class PongView(QGraphicsView):
     def resizeEvent(self, event):
         self.fitInView(self.scene.sceneRect(), Qt.KeepAspectRatio)
 
+    def mouseMoveEvent(self, event):
+        if self.mqttState == MqttClient.Connected and (self.paddle1Control or self.paddle2Control):
+            self.prev = self.pos
+            self.pos = self.mapToScene(event.pos())
+
     ############################################################################
     # MQTT events                                                              #
     ############################################################################
@@ -174,92 +189,86 @@ class PongView(QGraphicsView):
             self.client.subscribe("/pong3d/+/y")
             self.client.subscribe("/pong3d/+/z")
 
+            self.client.subscribe("/pong3d/+/request")
+
+            self.mqttState = state
+
     @Slot(str, bytes)
     def on_messageSignal(self, topic, msg):
-        try:
-            val = int.from_bytes(msg, "little", signed=True)
-            subt  = topic.split('/')
-            item  = subt[-2]
-            coord = subt[-1]
-            if item == 'ball':
-                if   coord == 'x':
-                    self.ball_new_coords['x'] = val
-                elif coord == 'y':
-                    self.ball_new_coords['y'] = val
-                elif coord == 'z':
-                    self.ball_new_coords['z'] = val
+        subt  = topic.split('/')[1:]
+        item  = subt[1]
+        if subt[2] != 'request':
+            try:
+                val = int.from_bytes(msg, "little", signed=True)
+                coord = subt[2]
+                if item == 'ball':
+                    if   coord == 'x':
+                        self.ball_new_coords['x'] = val
+                    elif coord == 'y':
+                        self.ball_new_coords['y'] = val
+                    elif coord == 'z':
+                        self.ball_new_coords['z'] = val
 
-                # Cambia las coordenadas de la bola cuando las 3 hayan sido leídas
-                if self.ball_new_coords.keys() == {'x', 'y', 'z'}:
-                    x = self.sign * self.ball_new_coords['x']
-                    y = self.ball_new_coords['y']
-                    z = self.depth + self.sign * self.ball_new_coords['z']
-                    self.ball.setPosition(x, y, z)
-                    self.ball_new_coords.clear()
-            elif item[:-1] == 'paddle':
-                # Selecciona la paleta
-                if   item[-1] == '1':
-                    paddle = self.paddle1
-                    new_coords = self.paddle1_new_coords
-                elif item[-1] == '2':
-                    paddle = self.paddle2
-                    new_coords = self.paddle2_new_coords
+                    # Cambia las coordenadas de la bola cuando las 3 hayan sido leídas
+                    if self.ball_new_coords.keys() == {'x', 'y', 'z'}:
+                        x = self.sign * self.ball_new_coords['x']
+                        y = self.ball_new_coords['y']
+                        z = self.depth + self.sign * self.ball_new_coords['z']
+                        self.ball.setPosition(x, y, z)
+                        self.ball_new_coords.clear()
+                elif item[:-1] == 'paddle':
+                    # Selecciona la paleta
+                    if   item[-1] == '1':
+                        paddle = self.paddle1
+                        new_coords = self.paddle1_new_coords
+                    elif item[-1] == '2':
+                        paddle = self.paddle2
+                        new_coords = self.paddle2_new_coords
 
-                # Guarda la coordenada
-                if   coord == 'x':
-                    new_coords['x'] = val
-                elif coord == 'y':
-                    new_coords['y'] = val
+                    # Guarda la coordenada
+                    if   coord == 'x':
+                        new_coords['x'] = val
+                    elif coord == 'y':
+                        new_coords['y'] = val
 
-                # Cambia las coordenadas de la paleta cuando las 2 hayan sido leídas
-                if new_coords.keys() == {'x', 'y'}:
-                    x = self.sign * new_coords['x']
-                    y = new_coords['y']
-                    paddle.setPosition(x, y)
-                    new_coords.clear()
+                    # Cambia las coordenadas de la paleta cuando las 2 hayan sido leídas
+                    if new_coords.keys() == {'x', 'y'}:
+                        x = self.sign * new_coords['x']
+                        y = new_coords['y']
+                        paddle.setPosition(x, y)
+                        new_coords.clear()
 
-        except ValueError:
-            print('error: Value sent at "{}" is not a number'.format(topic))
+            except ValueError:
+                print('error: Value sent at "{}" is not a number'.format(topic))
 
-    def test(self):
-        self.BOUND_UP    =   self.PF_HEIGHT / 2
-        self.BOUND_DOWN  = - self.PF_HEIGHT / 2
-        self.BOUND_RIGHT =   self.PF_WIDTH  / 2
-        self.BOUND_LEFT  = - self.PF_WIDTH  / 2
-        self.BOUND_FRONT =   0
-        self.BOUND_BACK  =   self.PF_DEPTH
+        elif self.paddle1Control or self.paddle2Control:
+            x  = self.pos.x()
+            y  = self.pos.y()
+            vx = x - self.prev.x()
+            vy = y - self.prev.y()
+            if item == "paddle1":
+                self.client.m_client.publish("/pong3d/paddle1/response/x",  int( x).to_bytes(4, 'little', signed=True))
+                self.client.m_client.publish("/pong3d/paddle1/response/y",  int( y).to_bytes(4, 'little', signed=True))
+                self.client.m_client.publish("/pong3d/paddle1/response/vx", int(vx).to_bytes(4, 'little', signed=True))
+                self.client.m_client.publish("/pong3d/paddle1/response/vy", int(vy).to_bytes(4, 'little', signed=True))
+            elif item == "paddle2":
+                self.client.m_client.publish("/pong3d/paddle2/response/x",  int( x).to_bytes(4, 'little', signed=True))
+                self.client.m_client.publish("/pong3d/paddle2/response/y",  int( y).to_bytes(4, 'little', signed=True))
+                self.client.m_client.publish("/pong3d/paddle2/response/vx", int(vx).to_bytes(4, 'little', signed=True))
+                self.client.m_client.publish("/pong3d/paddle2/response/vy", int(vy).to_bytes(4, 'little', signed=True))
 
-        self.x = 0
-        self.y = 0
-        self.z = self.PF_DEPTH / 2
+    def update(self):
+        if self.mqttState == MqttClient.Connected:
+            if self.paddle1Control:
+                self.client.m_client.publish("/pong3d/paddle1/x", int(self.sign * self.pos.x()).to_bytes(4, 'little', signed=True))
+                self.client.m_client.publish("/pong3d/paddle1/y", int(self.pos.y()).to_bytes(4, 'little', signed=True))
 
-        self.v_x = 4
-        self.v_y = 4
-        self.v_z = 4
+            if self.paddle2Control:
+                self.client.m_client.publish("/pong3d/paddle2/x", int(self.sign * self.pos.x()).to_bytes(4, 'little', signed=True))
+                self.client.m_client.publish("/pong3d/paddle2/y", int(self.pos.y()).to_bytes(4, 'little', signed=True))
 
-        self.FPS = 30
-        self.DELAY = 1000 / self.FPS
-
-        self._delay(self.DELAY)
-
-    def _update(self):
-        self.x += self.v_x
-        self.y += self.v_y
-        self.z += self.v_z
-        if self.x - self.BALL_RADIUS < self.BOUND_LEFT or self.BOUND_RIGHT < self.x + self.BALL_RADIUS:
-            self.v_x *= -1
-        if self.y - self.BALL_RADIUS < self.BOUND_DOWN or self.BOUND_UP < self.y + self.BALL_RADIUS:
-            self.v_y *= -1
-        if self.z - self.BALL_RADIUS < self.BOUND_FRONT or self.BOUND_BACK < self.z + self.BALL_RADIUS:
-            self.v_z *= -1
-
-        self.ball.setPosition(self.x, self.y, self.z)
-
-    def _delay(self, milliseconds):
-        loop = QEventLoop(self)
+    def loop(self, milliseconds):
         t = QTimer(self)
-        t.timeout.connect(self._update)
+        t.timeout.connect(self.update)
         t.start(milliseconds)
-        loop.exec_()
-
 

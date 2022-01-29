@@ -16,7 +16,7 @@ class MainWindow(QMainWindow):
         # Menu bar
         self.menu = self.menuBar()
         testing = self.menu.addMenu("Testing")
-        aux = QAction("MQTT Auxiliar", self)
+        aux = QAction("Auxiliar", self)
         aux.triggered.connect(self.openHelperWindow)
         testing.addAction(aux)
 
@@ -55,6 +55,10 @@ class MainWindow(QMainWindow):
 
         self.setCentralWidget(centralWidget)
 
+        # Helper window
+        self.helper = Helper()
+        self.helper.paddleControlSignal.connect(self.setPaddleControl)
+
     def setViewPaddle1(self):
         self.pongView.setViewPaddle1()
 
@@ -62,8 +66,16 @@ class MainWindow(QMainWindow):
         self.pongView.setViewPaddle2()
 
     def openHelperWindow(self):
-        helper = Helper()
-        helper.show()
+        self.helper.show()
+
+    @Slot(bool, bool)
+    def setPaddleControl(self, paddle1, value):
+        if paddle1:
+            self.pongView.paddle1Control = value
+            print('Paddle1', value)
+        else:
+            self.pongView.paddle2Control = value
+            print('Paddle2', value)
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
