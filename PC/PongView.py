@@ -245,12 +245,12 @@ class PongView(QGraphicsView):
             y  = self.pos.y()
             vx = x - self.sign * self.prev.x()
             vy = y - self.prev.y()
-            if item == "paddle1":
+            if self.paddle1Control and item == "paddle1":
                 self.client.m_client.publish("/pong3d/paddle1/response/x",  int( x).to_bytes(4, 'little', signed=True))
                 self.client.m_client.publish("/pong3d/paddle1/response/y",  int( y).to_bytes(4, 'little', signed=True))
                 self.client.m_client.publish("/pong3d/paddle1/response/vx", int(vx).to_bytes(4, 'little', signed=True))
                 self.client.m_client.publish("/pong3d/paddle1/response/vy", int(vy).to_bytes(4, 'little', signed=True))
-            elif item == "paddle2":
+            elif self.paddle2Control and item == "paddle2":
                 self.client.m_client.publish("/pong3d/paddle2/response/x",  int( x).to_bytes(4, 'little', signed=True))
                 self.client.m_client.publish("/pong3d/paddle2/response/y",  int( y).to_bytes(4, 'little', signed=True))
                 self.client.m_client.publish("/pong3d/paddle2/response/vx", int(vx).to_bytes(4, 'little', signed=True))
