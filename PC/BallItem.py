@@ -78,7 +78,6 @@ class BallItem(QGraphicsItemGroup):
             half_x = -self.gr_width / 2
             half_y = -self.gr_height / 2
             self.guideRect = QGraphicsRectItem(half_x, half_y, self.gr_width, self.gr_height)
-            print(half_x, half_y, self.gr_width, self.gr_height)
             self.guideRect.setPen(self.color)
             self.addToGroup(self.guideRect)
 

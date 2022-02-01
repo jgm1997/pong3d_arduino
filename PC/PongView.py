@@ -24,7 +24,7 @@ class PongView(QGraphicsView):
     PADDLE_HEIGHT = PF_HEIGHT / 5
 
     PADDLE1_COLOR = Qt.red
-    PADDLE2_COLOR = Qt.blue
+    PADDLE2_COLOR = QColor(0,128,255,255) # Blue
 
     # Ball constants
     BALL_RADIUS = 5
@@ -176,7 +176,6 @@ class PongView(QGraphicsView):
 
     def mouseMoveEvent(self, event):
         if self.mqttState == MqttClient.Connected and (self.paddle1Control or self.paddle2Control):
-            self.prev = self.pos
             self.pos = self.mapToScene(event.pos())
 
     ############################################################################
@@ -242,9 +241,9 @@ class PongView(QGraphicsView):
                 print('error: Value sent at "{}" is not a number'.format(topic))
 
         elif self.paddle1Control or self.paddle2Control:
-            x  = self.pos.x()
+            x  = self.sign * self.pos.x()
             y  = self.pos.y()
-            vx = x - self.prev.x()
+            vx = x - self.sign * self.prev.x()
             vy = y - self.prev.y()
             if item == "paddle1":
                 self.client.m_client.publish("/pong3d/paddle1/response/x",  int( x).to_bytes(4, 'little', signed=True))
@@ -266,6 +265,8 @@ class PongView(QGraphicsView):
             if self.paddle2Control:
                 self.client.m_client.publish("/pong3d/paddle2/x", int(self.sign * self.pos.x()).to_bytes(4, 'little', signed=True))
                 self.client.m_client.publish("/pong3d/paddle2/y", int(self.pos.y()).to_bytes(4, 'little', signed=True))
+
+        self.prev = self.pos
 
     def loop(self, milliseconds):
         t = QTimer(self)

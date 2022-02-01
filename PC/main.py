@@ -56,7 +56,7 @@ class MainWindow(QMainWindow):
         self.setCentralWidget(centralWidget)
 
         # Helper window
-        self.helper = Helper()
+        self.helper = Helper(parent=self)
         self.helper.paddleControlSignal.connect(self.setPaddleControl)
 
     def setViewPaddle1(self):
@@ -72,10 +72,8 @@ class MainWindow(QMainWindow):
     def setPaddleControl(self, paddle1, value):
         if paddle1:
             self.pongView.paddle1Control = value
-            print('Paddle1', value)
         else:
             self.pongView.paddle2Control = value
-            print('Paddle2', value)
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
