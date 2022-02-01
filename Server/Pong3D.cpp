@@ -8,8 +8,9 @@ Pong3D::Pong3D(){
     this->playersConnected = 0;
     this->playersReady = 0;
 
+    this->ballSpeedIncrement = 2;
     this->ballPosition = coord_t{0, 0, 0};
-    this->ballVelocity = velocity_t{1, 1, 1};
+    this->ballVelocity = velocity_t{1, 1, -1};
     this->ballRadius   = 10;
 
     this->paddleWidth  = 500/5;
@@ -57,8 +58,10 @@ gameevent_t Pong3D::updateGame(){
     }
 
     if(ballPosition.z - r < BOUND_FRONT) {
+        // Reach paddle 1
         event = BALL_P1_REACH;
     } else if(BOUND_BACK < ballPosition.z + r) {
+        // Reach paddle2
         event = BALL_P2_REACH;
     }
 
@@ -102,23 +105,28 @@ void Pong3D::invertVelocityZ(){
 
 void Pong3D::fixPosition(){
     const int32_t r = (int32_t) ballRadius;
+    
+    // Fix X
     if(ballPosition.x - r < BOUND_LEFT)
-        ballPosition.x = 2*BOUND_LEFT - ballPosition.x + r;
+        ballPosition.x = 2*(BOUND_LEFT + r) - ballPosition.x;
     else if(ballPosition.x + r > BOUND_RIGHT)
-        ballPosition.x = 2*BOUND_RIGHT - ballPosition.x - r;
+        ballPosition.x = 2*(BOUND_RIGHT - r) - ballPosition.x;
     
+    // Fix Y
     if(ballPosition.y - r < BOUND_DOWN)
-        ballPosition.y = 2*BOUND_DOWN - ballPosition.y + r;
+        ballPosition.y = 2*(BOUND_DOWN + r) - ballPosition.y;
     else if(ballPosition.y + r > BOUND_UP)
-        ballPosition.y = 2*BOUND_UP - ballPosition.y - r;
+        ballPosition.y = 2*(BOUND_UP - r) - ballPosition.y;
     
+    // Fix Z
     if(ballPosition.z - r < BOUND_FRONT)
-        ballPosition.z = 2*BOUND_FRONT - ballPosition.z + r;
+        ballPosition.z = 2*(BOUND_FRONT + r) - ballPosition.z;
     else if(ballPosition.z + r > BOUND_BACK)
-        ballPosition.z = 2*BOUND_BACK - ballPosition.z - r;
+        ballPosition.z = 2*(BOUND_BACK - r) - ballPosition.z;
 }
 
 bool Pong3D::computePaddleCollision(int32_t px, int32_t py, int32_t pvx, int32_t pvy, uint8_t paddle){
+    // Get paddle borders
     const int32_t paddleUp    = py + (int32_t) paddleHeight / 2;
     const int32_t paddleDown  = py - (int32_t) paddleHeight / 2;
     const int32_t paddleRight = px + (int32_t) paddleWidth  / 2;
@@ -130,6 +138,11 @@ bool Pong3D::computePaddleCollision(int32_t px, int32_t py, int32_t pvx, int32_t
             && paddleDown  < ballPosition.y + r
             && paddleUp    > ballPosition.y - r) {
         invertVelocityZ();
+        ballSpeed += ballSpeedIncrement;
+
+        int32_t new_vx = ballVelocity.vx + pvx;
+        int32_t new_vy = ballVelocity.vy + pvy;
+        ballVelocity.deduceZ(ballSpeed, new_vx, new_vy);
         return true;
     } else {
         score(paddle ? 0 : 1);
@@ -159,6 +172,10 @@ uint8_t Pong3D::getScore2() {
     return this->score2;
 }
 
+uint8_t Pong3D::getTarget() {
+    return this->target;
+}
+
 // PRIVATE METHODS
 
 // Game modify (in game)
@@ -183,6 +200,7 @@ void Pong3D::score(uint8_t player) {
 
 void Pong3D::resetPosition(uint8_t paddle) {
     this->ballPosition = coord_t{0, 0, (BOUND_FRONT + BOUND_BACK)/2};
-    this->ballVelocity = paddle ? velocity_t{1, 1, -1} : velocity_t{1, 1, 1};
+    this->ballVelocity = paddle ? velocity_t{1, 1, 1} : velocity_t{1, 1, -1};
+    this->ballSpeed = this->initialBallSpeed;
     this->ballVelocity.setSpeed(this->initialBallSpeed);
 }

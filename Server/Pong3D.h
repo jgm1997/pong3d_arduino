@@ -43,6 +43,20 @@ struct velocity_t {
         vy = (int32_t) (speed * cos_b * sin(alpha));
         vz = (int32_t) (speed * sin(beta));
     }
+    
+    void deduceZ(int32_t speed, int32_t new_vx, int32_t new_vy) {
+        vx = new_vx;
+        vy = new_vy;
+
+        double vxy = sqrt((double) new_vx*new_vx + new_vy*new_vy);
+        if(vxy >= (double) speed / M_SQRT2) {
+            // Avoid angle beta being smaller than 45°
+            vz = (int32_t) vxy;
+            setSpeed(speed);
+        } else {
+            vz = (vz >= 0 ? 1 : -1) * (int32_t) sqrt((double) speed*speed - new_vx*new_vx - new_vy*new_vy);
+        }
+    }
 };
 
 struct coord_t {
@@ -99,6 +113,7 @@ class Pong3D {
         
         uint8_t getScore1();
         uint8_t getScore2();
+        uint8_t getTarget();
         
     private:
         // Playfield dimensions
@@ -107,6 +122,8 @@ class Pong3D {
         uint32_t depth;
 
         uint32_t initialBallSpeed;
+        uint32_t ballSpeed;
+        uint32_t ballSpeedIncrement;
         
         uint8_t playersConnected;
         uint8_t playersReady;
