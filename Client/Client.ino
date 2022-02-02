@@ -3,7 +3,6 @@
 #include <Ethernet2.h>
 #include <PubSubClient.h>
 #include <Arduino.h>
-//#include "lib/Keypad.h"
 #include "LCD.h"
 #include "Joystick.h"
 
@@ -14,7 +13,7 @@
 // Joystick definition
 #define JS_X A14
 #define JS_Y A15
-#define JS_SW 47
+#define JS_SW 19
 
 Joystick joy(JS_X, JS_Y, JS_SW);
 
@@ -44,11 +43,6 @@ PubSubClient mqttClient(ethClient);
 
 void callback(char *topic, byte *payload, unsigned int length);
 void reconnect();
-
-ISR(PCINT2_vect)
-{
-    timer_flag = true;
-}
 
 // pines del LCD
 #define PIN_RS A0
@@ -95,8 +89,7 @@ int32_t vy = 0;
 int32_t sign = 0;
 
 // Scores
-uint8_t p1_score = 0;
-uint8_t p2_score = 0;
+uint8_t score = 0;
 uint8_t target = 6;
 
 void setup()
@@ -113,21 +106,7 @@ void setup()
 
     mqttClient.setServer(broker_name, broker_port);
     mqttClient.setCallback(callback);
-    /*
-        // Configuración del timer
-        noInterrupts();
-        TCCR1A = 0;
-        TCCR1B = 0;
-        // modo ctc
-        TCCR1B |= (1 << WGM12); // posam un 1 a nes bit wgmn2 del registre tccr1b
 
-        OCR1A = 62500; // 1 segundo
-
-        TIMSK1 |= (1 << OCIE1A); // output compare match(OCIEnX)
-
-        TCCR1B |= (1 << CS12); // pre-escalado 1:256
-        interrupts();
-    */
     joy.init();
 
     // LCD
@@ -288,23 +267,24 @@ void callback(char *topic, byte *payload, unsigned int length)
     {
         if (strcmp(params[1], player_id) == 0)
         {
-            p1_score = payload[0];
+            score = payload[0];
             sprintf(str,
                     "    Score %d    "
-                    "    Goal: 6     ",
-                    p1_score);
+                    "     Goal: 6    ",
+                    score);
             lcd.clear();
             lcd.print(str);
-        }
-        else
-        {
-            p2_score = payload[0];
-            sprintf(str,
-                    "    Score %d    "
-                    "    Goal: 6     ",
-                    p2_score);
-            lcd.clear();
-            lcd.print(str);
+            if (score == target)
+            {
+                delay(1000);
+                sprintf(str,
+                        "     WINNER     "
+                        "     %s         ",
+                        player_id);
+                lcd.clear();
+                lcd.print(str);
+                delay(5000);
+            }
         }
     }
     else if (strcmp(params[1], player_id) == 0)
@@ -422,6 +402,28 @@ void callback(char *topic, byte *payload, unsigned int length)
         if (strcmp(params[2], "target") == 0)
         {
             target = payload[0];
+        }
+
+        if (strcmp(params[2], "state") == 0)
+        {
+            // 0 = waiting, 1 = ready, 2 = playing, 3 = game over
+            if (payload[0] == 1)
+            {
+                sprintf(str,
+                        "    PRESS SW    "
+                        "    TO PLAY     ");
+                lcd.clear();
+                lcd.print(str);
+            }
+
+            if (payload[0] == 3)
+            {
+                sprintf(str,
+                        "   PRESS SW TO  "
+                        "   PLAY AGAIN   ");
+                lcd.clear();
+                lcd.print(str);
+            }
         }
     }
     else
