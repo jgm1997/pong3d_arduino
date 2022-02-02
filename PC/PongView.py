@@ -249,6 +249,7 @@ class PongView(QGraphicsView):
 
         elif subt[2] == 'request' and (self.paddle1Control or self.paddle2Control):
             # Testing paddle control enabled
+            item  = subt[1]
             x  = self.sign * self.pos.x()
             y  = self.pos.y()
             vx = x - self.sign * self.prev.x()
