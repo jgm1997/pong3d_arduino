@@ -47,6 +47,8 @@ void callback(char *topic, byte *payload, unsigned int length);
 void reconnect();
 void lcdPrintScore();
 void pubishSetup();
+void keypadUpdate();
+void updateValues();
 
 // Publish topics
 #define TOPIC_BALL_X "/pong3d/ball/x"
@@ -106,11 +108,21 @@ Pong3D p3d;
 #define TIMER   1
 #define TIMERV  TIMER1_COMPA_vect
 
+#define TIME_K_MS 50
+#define TIMER_K   3
+#define TIMERV_K  TIMER3_COMPA_vect
+
 Timer timer(TIMER);
+Timer timer_k(TIMER_K);
 
 volatile bool timer_flag = false;
 ISR(TIMERV) {
     timer_flag = true;
+}
+
+volatile bool timer_k_flag = false;
+ISR(TIMERV_K) {
+    timer_k_flag = true;
 }
 
 // Auxiliary variables
@@ -142,11 +154,16 @@ void setup() {
     // Auxiliary variables initialization
     msg = (uint8_t *) malloc(MSG_SIZE);
     str = (char *) malloc(STR_SIZE);
+    lcd_backup = (char *) malloc(33);
+
     response.setAllFalse();
 
     // Timer
     timer.setTime(TIME_MS);
     timer.load();
+    
+    timer_k.setTime(TIME_K_MS);
+    timer_k.load();
     
     // Pong3D
     p3d.setDimensions(
@@ -167,10 +184,11 @@ void setup() {
 
     // LCD
 	lcd.init();
-    lcd.print(
+    strcpy(lcd_backup,
         "     Pong3D     "
         "     Server     "
     );
+    lcd.print(lcd_backup);
     delay(2000);
 }
 
@@ -191,20 +209,31 @@ void loop() {
     if(p3d.getGameState() == GAME_WAITING) {
         curstate = p3d.getGameState();
         mqttClient.publish(TOPIC_SETUP_STATE, (uint8_t *) &curstate, 1, true);
-        lcd.clear();
-        lcd.print(
+        strcpy(lcd_backup,
             "  Waiting for   "
             "   players...   "
         );
+        if(!menuOpen) {
+            lcd.clear();
+            lcd.print(lcd_backup);
+        }
         delay(1000);
+        
+        
     } while(p3d.getGameState() == GAME_WAITING) {
         // Esperar a que se conecten los jugadores (callback)
         mqttClient.loop();
         if(!mqttClient.connected()) break;
+
+        if(timer_k_flag) {
+            keypadUpdate();
+            timer_k_flag = false;
+        }
         
-        // Keyboard
-        //key = keypad.readKeypad(BLOCK); // Polling
-	    //action(key);
+        if(valuesModify) {
+            updateValues();
+            valuesModify = false;
+        }
     }
     
     /**************************************************************************/
@@ -215,26 +244,29 @@ void loop() {
         mqttClient.publish(TOPIC_SETUP_STATE, (uint8_t *) &curstate, 1, true);
         pl_rdy = 0;
 
-        lcd.clear();
-        lcd.print(
+        strcpy(lcd_backup,
             "   Game ready   "
             "                "
         );
+        if(!menuOpen) {
+            lcd.clear();
+            lcd.print(lcd_backup);
+        }
         
-        // CAMBIAR CUANDO TENGAMOS LA INTEGRACIÓN DEL MENÚ EN EL READY
-        // (o en el waiting)
-        // Se debe activar cada vez que se hayan actualizado los valores en la
-        // estructura currentValues.
-        p3d.setDimensions(
-            currentValues.width, currentValues.height, currentValues.depth
-        );
-        p3d.setInitialBallSpeed(currentValues.speed);
-        publishSetup();
-
     } while(p3d.getGameState() == GAME_READY) {
         // Esperar a que los jugadores den su visto bueno (callback)
         mqttClient.loop();
         if(!mqttClient.connected()) break;
+        
+        if(timer_k_flag) {
+            keypadUpdate();
+            timer_k_flag = false;
+        }
+
+        if(valuesModify) {
+            updateValues();
+            valuesModify = false;
+        }
     }
     
     /**************************************************************************/
@@ -243,16 +275,20 @@ void loop() {
     if(p3d.getGameState() == GAME_PLAYING) {
         curstate = p3d.getGameState();
         mqttClient.publish(TOPIC_SETUP_STATE, (uint8_t *) &curstate, 1, true);
-        lcd.clear();
-        lcd.print(
+        strcpy(lcd_backup,
             "     Start!     "
             "                "
         );
+        if(!menuOpen) {
+            lcd.clear();
+            lcd.print(lcd_backup);
+        }
         const uint8_t score = 0;
         pub_ok  = mqttClient.publish(TOPIC_P1_SCORE, &score, 1);
         pub_ok &= mqttClient.publish(TOPIC_P2_SCORE, &score, 1);
         delay(1000);
         lcdPrintScore();
+
     } while(p3d.getGameState() == GAME_PLAYING) {
         // En función del último evento de la actualización anterior
         if(game_event != BALL_P1_REACH && game_event != BALL_P2_REACH) {
@@ -300,6 +336,12 @@ void loop() {
 
         mqttClient.loop();
         if(!mqttClient.connected()) break;
+
+        if(timer_k_flag) {
+            keypadUpdate();
+            timer_k_flag = false;
+        }
+
     }
     
     /**************************************************************************/
@@ -309,12 +351,21 @@ void loop() {
         curstate = p3d.getGameState();
         mqttClient.publish(TOPIC_SETUP_STATE, (uint8_t *) &curstate, 1, true);
         delay(500);
-        lcd.clear();
         lcdPrintWinner();
     } while(p3d.getGameState() == GAME_OVER) {
         // Esperar a solicitud para repetir partida (callback)
         mqttClient.loop();
         if(!mqttClient.connected()) break;
+
+        if(timer_k_flag) {
+            keypadUpdate();
+            timer_k_flag = false;
+        }
+
+        if(valuesModify) {
+            updateValues();
+            valuesModify = false;
+        }
     }
 
 }
@@ -372,13 +423,15 @@ void callback(char *topic, byte *payload, unsigned int length) {
             pl_con[idx] = recv_id;
             pub_ok = mqttClient.publish(TOPIC_ASSIGN, resp_id);
             
-            sprintf(str,
+            sprintf(lcd_backup,
                 "   Player %s     "
                 "   connected    ",
                 resp_id
             );
-            lcd.clear();
-            lcd.print(str);
+            if(!menuOpen) {
+                lcd.clear();
+                lcd.print(lcd_backup);
+            }
         }
         // else: Jugador no permitido, máximo alcanzado
 
@@ -406,13 +459,15 @@ void callback(char *topic, byte *payload, unsigned int length) {
                 pl_rdy |= (1 << idx);
 
                 p3d.playerReady();
-                sprintf(str,
+                sprintf(lcd_backup,
                     "   Player %s     "
                     "     ready      ",
                     resp_id
                 );
-                lcd.clear();
-                lcd.print(str);
+                if(!menuOpen) {
+                    lcd.clear();
+                    lcd.print(lcd_backup);
+                }
             }
             // else: player already ready
         }
@@ -478,16 +533,25 @@ void callback(char *topic, byte *payload, unsigned int length) {
 void reconnect() {
     // Loop until we're reconnected
     while (!mqttClient.connected()) {
-        lcd.clear();
-        lcd.print("Attempting MQTT connection...");
+        strcpy(lcd_backup,
+            "Attempting MQTT "
+            "connection...   "
+        );
+        if(!menuOpen) {
+            lcd.clear();
+            lcd.print(lcd_backup);
+        }
 
         // Attempt to connect
         if (mqttClient.connect(client_id)) {
-            lcd.clear();
-            lcd.print(
+            strcpy(lcd_backup,
                 "   Connected    "
                 "                "
             );
+            if(!menuOpen) {
+                lcd.clear();
+                lcd.print(lcd_backup);
+            }
             sub_ok = true;
             
             if (mqttClient.subscribe(TOPIC_RESPONSE)) {
@@ -522,41 +586,44 @@ void reconnect() {
             }
             
             delay(1000);
-            lcd.clear();
         } else {
-            lcd.clear();
-            sprintf(str, "failed, rc=%d", mqttClient.state());
-            lcd.print(str);
-            lcd.moveCursor(2,1);
-            lcd.print(" try again in 2s");
+            sprintf(lcd_backup,
+                "failed, rc=%d   "
+                "try again in 2s",
+                mqttClient.state()
+            );
+            if(!menuOpen) {
+                lcd.clear();
+                lcd.print(lcd_backup);
+            }
             delay(2000);
         }
     }
 }
 
 void lcdPrintScore() {
-    lcd.clear();
-    sprintf(str, "Score: %d / %d", p3d.getScore1(), p3d.getScore2());
-    lcd.print(str);
-    
-    lcd.moveCursor(2,1);
-    sprintf(str, " Goal: %d", p3d.getTarget());
-    lcd.print(str);
-
-    lcd.moveCursor(2,17);
+    sprintf(lcd_backup,
+        "Score: %d / %d    "
+        " Goal: %d        ",
+        p3d.getScore1(), p3d.getScore2(), p3d.getTarget()
+    );
+    if(!menuOpen) {
+        lcd.clear();
+        lcd.print(lcd_backup);
+    }
 }
 
 void lcdPrintWinner() {
-    lcd.clear();
-    lcd.print("   Game Over!   ");
-    
-    lcd.moveCursor(2,1);
     uint8_t number = p3d.getScore1() == p3d.getTarget() ? 1 : 2;
-    sprintf(str, " Player %d wins", number);
-    lcd.print(str);
-
-    lcd.moveCursor(2,17);
-   
+    sprintf(lcd_backup,
+        "   Game Over!   "
+        " Player %d wins  ",
+        number
+    );
+    if(!menuOpen) {
+        lcd.clear();
+        lcd.print(lcd_backup);
+    }
 }
 
 void publishSetup() {
@@ -577,4 +644,20 @@ void publishSetup() {
     } else {
         Serial.println("Some setup messages couldn't be Published");
     }
+}
+
+void keypadUpdate() {
+    key_prev = key;
+    key = keypad.readKeypad(NO_BLOCK); // Polling
+    if(key != KEYPAD_NO_KEY && key_prev != key) {
+        action(key);
+    }
+}
+
+void updateValues() {
+    p3d.setDimensions(
+        currentValues.width, currentValues.height, currentValues.depth
+    );
+    p3d.setInitialBallSpeed(currentValues.speed);
+    publishSetup();
 }

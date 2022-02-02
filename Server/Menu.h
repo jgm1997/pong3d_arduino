@@ -33,19 +33,28 @@ LCD lcd(
 
 Keypad keypad;
 
+uint8_t key = KEYPAD_NO_KEY;
+uint8_t key_prev = KEYPAD_NO_KEY;
+
+char* lcd_backup;
+
 char characters[KEYPAD_ROWS*KEYPAD_COLS] = {
 	'7',  '8',  '9',  '\0', //Cancel
 	'4',  '5',  '6',  '\0', //OK
 	'1',  '2',  '3',  '\0', //Borrar la fila
-	'0',  '\0', '\0', '\0'
+	'0',  '\0', '\0', '\0'  // Iniciar/detener menú
   //     <-    ->     
 };
+
+bool menuOpen = false;
+bool valuesModify = false;
 
 #define ACTION_CANCEL 3
 #define ACTION_OK     7
 #define ACTION_DELETE_ROW 11 
 #define ACTION_PREVIOUS  13 
 #define ACTION_NEXT   14
+#define ACTION_INIT   15
 #define ARRAYSIZE 16
 #define STATES 7
 
@@ -112,7 +121,7 @@ void printState(uint8_t state){
     case 1:
       lcd.print(states[1]);lcd.print(p_printWidth);
       lcd.moveCursor(2,1);
-      lcd.print("<-Exit    Next->");
+      lcd.print("<-Prev    Next->");
       break;
     //Estado altura
     case 2:
@@ -162,6 +171,8 @@ void assignValue(char* pointer, long value, uint8_t state){
         p_printSpeed = pointer;
         break;
     }
+    
+    valuesModify = true;
 }
 
 /*
@@ -170,63 +181,71 @@ dependiendo de que tecla se ha pulsado
 */
 
 void action(uint8_t key) {
-	char c = characters[key];
-	if(!c) {
-		switch(key) {
-      //Borra la fila de abajo en el caso de que el usuario
-      //se haya equivocado introduciendo el valor
-			case ACTION_DELETE_ROW:
-				lcd.delete_row(2);
-				break;
-      //Si no queremos introducir ningún valor, volvemos al estado anterior
-      case ACTION_CANCEL:
-        lcd.clear();
-        current = current;
-        printState(current);
-        oks = 0;
-        break;
-      //Cambiamos al siguiente estado  
-      case ACTION_NEXT:
-        lcd.clear();
-        current = (current+1) % 5;
-        printState(current);
-        break;
-      //Volvemos al estado anterior
-      case ACTION_PREVIOUS:
-        lcd.clear();
-        current = (current-1) % 5;
-        printState(current);
-        break;
-      //Si pulsamos OK 1 vez, nos lleva al estado para introducir un valor
-      //Si pulsamos OK 2 otra vez, confirmamos el valor introducido
-      case ACTION_OK:
-        oks = oks + 1;
-        //Serial.println(oks);
-        if(oks%2 == 1){
+  if(key != 15 && menuOpen) {
+      
+    char c = characters[key];
+    if(!c) {
+      switch(key) {
+        //Borra la fila de abajo en el caso de que el usuario
+        //se haya equivocado introduciendo el valor
+        case ACTION_DELETE_ROW:
+          lcd.delete_row(2);
+          break;
+        //Si no queremos introducir ningún valor, volvemos al estado anterior
+        case ACTION_CANCEL:
           lcd.clear();
-          lcd.print(states[5]);
-          lcd.moveCursor(2,1);
-          //si es un numero par de oks
-        } else {
-          p_aux = lcd.readSecondRow();
-          valueIntroduced = atol(p_aux);
-          assignValue(p_aux, valueIntroduced, current);
-          delay(500);
-          lcd.clear();
-          lcd.print(states[6]);
-          delay(800);
-          lcd.clear();
+          current = current;
           printState(current);
           oks = 0;
-        }
+          break;
+        //Cambiamos al siguiente estado  
+        case ACTION_NEXT:
+          lcd.clear();
+          current = (current+1) % 5;
+          printState(current);
+          break;
+        //Volvemos al estado anterior
+        case ACTION_PREVIOUS:
+          lcd.clear();
+          current = current-1 < 0 ? 4 : current-1;
+          printState(current);
+          break;
+        //Si pulsamos OK 1 vez, nos lleva al estado para introducir un valor
+        //Si pulsamos OK 2 otra vez, confirmamos el valor introducido
+        case ACTION_OK:
+          oks = oks + 1;
+          //Serial.println(oks);
+          if(oks%2 == 1){
+            lcd.clear();
+            lcd.print(states[5]);
+            lcd.moveCursor(2,1);
+            //si es un numero par de oks
+          } else {
+            p_aux = lcd.readSecondRow();
+            valueIntroduced = atol(p_aux);
+            assignValue(p_aux, valueIntroduced, current);
+            delay(500);
+            lcd.clear();
+            lcd.print(states[6]);
+            delay(800);
+            lcd.clear();
+            printState(current);
+            oks = 0;
+          }
 
-        break;
-		}
-	} else {
-			lcd.print(c);
-     //Serial.println(c); 
-		}
+          break;
+      }
+    } else if(key == 15) {
+      lcd.print(c);
+      //Serial.println(c); 
+    }
+  } else {
+    menuOpen = !menuOpen;
+    if(menuOpen) {
+      printState(current);
+    } else {
+      lcd.clear();
+      lcd.print(lcd_backup);
+    }
+  }
 }
-
- 
-uint8_t key;
