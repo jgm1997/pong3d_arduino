@@ -3,7 +3,7 @@ from PySide6.QtCore    import *
 from PySide6.QtGui     import *
 
 class PaddleItem(QGraphicsItemGroup):
-    def __init__(self, parent=None):
+    def __init__(self):
         super(PaddleItem, self).__init__()
 
     def setTransform3D(self, t3d):
@@ -64,12 +64,15 @@ class PaddleItem(QGraphicsItemGroup):
         self.addToGroup(self.h_line)
 
     def updatePaddle(self):
-        self.rectangle.setPen(pen)
-        self.rectangle.setBrush(brush)
-        self.v_line.setPen(pen)
-        self.h_line.setPen(pen)
+        self.clearPaddle()
+        self.initPaddle()
+        self.update()
 
     def clearPaddle(self):
         self.removeFromGroup(self.rectangle)
         self.removeFromGroup(self.v_line)
         self.removeFromGroup(self.h_line)
+
+        self.scene().removeItem(self.rectangle)
+        self.scene().removeItem(self.v_line)
+        self.scene().removeItem(self.h_line)

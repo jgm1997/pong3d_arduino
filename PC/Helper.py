@@ -8,6 +8,8 @@ from MqttClient    import MqttClient
 
 class Helper(QDialog):
     paddleControlSignal = Signal(bool, bool)
+
+    IDS = ['test1', 'test2']
     def __init__(self, parent=None):
         super(Helper, self).__init__()
         self.setWindowTitle('Auxiliar')
@@ -27,6 +29,7 @@ class Helper(QDialog):
         self.rdyBut = QPushButton("Ready")
         self.pd1RespBut = QPushButton("Paddle 1 response")
         self.pd2RespBut = QPushButton("Paddle 2 response")
+        self.client_id = 0
 
         label2 = QLabel("Asignación de ID al jugador:")
         self.assignSwitch = False
@@ -90,10 +93,12 @@ class Helper(QDialog):
         self.setFixedSize(self.sizeHint())
 
     def sendConnected(self):
-        self.client.m_client.publish("/pong3d/connected", b'')
+        self.client.m_client.publish("/pong3d/connected", Helper.IDS[self.client_id % 2])
+        self.client_id += 1
 
     def sendReady(self):
-        self.client.m_client.publish("/pong3d/ready", b'')
+        self.client.m_client.publish("/pong3d/ready", Helper.IDS[self.client_id % 2])
+        self.client_id += 1
 
     def sendResponse(self, paddle1):
         topic = '/pong3d/paddle{}/response/'.format(2 if paddle1 else 1)

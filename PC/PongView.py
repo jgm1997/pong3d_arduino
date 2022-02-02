@@ -39,14 +39,24 @@ class PongView(QGraphicsView):
         self.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
         self.setRenderHint(QPainter.Antialiasing)
 
+        # Playfield and paddle parameters
+        self.pf_width  = PongView.PF_WIDTH
+        self.pf_height = PongView.PF_HEIGHT
+        self.pf_depth  = PongView.PF_DEPTH
+
+        self.paddle_width  = PongView.PADDLE_WIDTH
+        self.paddle_height = PongView.PADDLE_HEIGHT
+
+        self.scene = QGraphicsScene(parent=self)
+
         # Transform 3D
         self.t3d = Transform3D()
         self.t3d.setProyectionPlaneDistance(self.PROYDIST)
 
         # Paddle 1
-        self.paddle1 = PaddleItem(self.PADDLE1_COLOR)
+        self.paddle1 = PaddleItem()
         self.paddle1.setColor(self.PADDLE1_COLOR)
-        self.paddle1.setSize(self.PADDLE_WIDTH, self.PADDLE_HEIGHT)
+        self.paddle1.setSize(self.paddle_width, self.paddle_height)
         self.paddle1.setTransform3D(self.t3d)
         self.paddle1.initPaddle()
         self.paddle1.setPosition(0, 0, 0)
@@ -56,10 +66,10 @@ class PongView(QGraphicsView):
         # Paddle 2
         self.paddle2 = PaddleItem()
         self.paddle2.setColor(self.PADDLE2_COLOR)
-        self.paddle2.setSize(self.PADDLE_WIDTH, self.PADDLE_HEIGHT)
+        self.paddle2.setSize(self.paddle_width, self.paddle_height)
         self.paddle2.setTransform3D(self.t3d)
         self.paddle2.initPaddle()
-        self.paddle2.setPosition(0, 0, self.PF_DEPTH)
+        self.paddle2.setPosition(0, 0, self.pf_depth)
 
         self.paddle2_new_coords = {}
 
@@ -67,16 +77,16 @@ class PongView(QGraphicsView):
         self.ball = BallItem()
         self.ball.setRadius(self.BALL_RADIUS)
         self.ball.setColor(self.BALL_COLOR)
-        self.ball.setGuideRectangle(self.PF_WIDTH, self.PF_HEIGHT)
+        self.ball.setGuideRectangle(self.pf_width, self.pf_height)
         self.ball.setTransform3D(self.t3d)
         self.ball.initBall()
-        self.ball.setPosition(0, 0, self.PF_DEPTH/2)
+        self.ball.setPosition(0, 0, self.pf_depth/2)
 
         self.ball_new_coords = {}
 
         # Playfield
         self.playfield = PlayfieldItem()
-        self.playfield.setDimensions(self.PF_WIDTH, self.PF_HEIGHT, self.PF_DEPTH)
+        self.playfield.setDimensions(self.pf_width, self.pf_height, self.pf_depth)
         self.playfield.setColor(self.PF_COLOR)
         self.playfield.setTransform3D(self.t3d)
         self.playfield.initPlayfield()
@@ -107,10 +117,10 @@ class PongView(QGraphicsView):
         self.loop(50)
 
     def _initScreen(self):
-        self.scene = QGraphicsScene(parent=self)
+        self.scene.clear()
 
-        width  = self.PF_WIDTH  + 2 * self.MARGIN
-        height = self.PF_HEIGHT + 2 * self.MARGIN
+        width  = self.pf_width  + 2 * self.MARGIN
+        height = self.pf_height + 2 * self.MARGIN
 
         self.scene.setSceneRect(-width/2, -height/2, width, height)
         self.scene.setBackgroundBrush(QBrush(Qt.black))
@@ -137,12 +147,12 @@ class PongView(QGraphicsView):
             self.paddle1.setZValue(3)
 
             self.paddle2.invertX()
-            self.paddle2.setZ(self.PF_DEPTH)
+            self.paddle2.setZ(self.pf_depth)
             self.paddle2.setZValue(1)
 
             self.ball.invertX()
             self.ball.setZValue(2)
-            self.ball.invertZ(self.PF_DEPTH/2)
+            self.ball.invertZ(self.pf_depth/2)
 
         self.sign = 1
         self.depth = 0
@@ -151,7 +161,7 @@ class PongView(QGraphicsView):
     def setViewPaddle2(self):
         if self.sign > 0:
             self.paddle1.invertX()
-            self.paddle1.setZ(self.PF_DEPTH)
+            self.paddle1.setZ(self.pf_depth)
             self.paddle1.setZValue(1)
 
             self.paddle2.invertX()
@@ -160,10 +170,10 @@ class PongView(QGraphicsView):
 
             self.ball.invertX()
             self.ball.setZValue(2)
-            self.ball.invertZ(self.PF_DEPTH/2)
+            self.ball.invertZ(self.pf_depth/2)
 
         self.sign = -1
-        self.depth = self.PF_DEPTH
+        self.depth = self.pf_depth
 
     def keyPressEvent(self, event):
         if event.key() == Qt.Key_Left:
@@ -188,6 +198,8 @@ class PongView(QGraphicsView):
             self.client.subscribe("/pong3d/+/y")
             self.client.subscribe("/pong3d/+/z")
 
+            self.client.subscribe("/pong3d/game_setup/+")
+
             self.client.subscribe("/pong3d/+/request")
 
             self.mqttState = state
@@ -195,8 +207,66 @@ class PongView(QGraphicsView):
     @Slot(str, bytes)
     def on_messageSignal(self, topic, msg):
         subt  = topic.split('/')[1:]
-        item  = subt[1]
-        if subt[2] != 'request':
+        if   subt[1] == 'game_setup':
+            try:
+                val = int.from_bytes(msg, "little", signed=False)
+                if subt[2] == 'width':
+                    self.pf_width = val
+                    self.paddle_width = val / 5
+                elif subt[2] == 'height':
+                    self.pf_height = val
+                    self.paddle_height = val / 5
+                elif subt[2] == 'depth':
+                    self.pf_depth = val
+                else:
+                    return
+
+                self.playfield.setDimensions(self.pf_width, self.pf_height, self.pf_depth)
+                self.playfield.updatePlayfield()
+
+                self.paddle1.setSize(self.paddle_width, self.paddle_height)
+                self.paddle1.updatePaddle()
+                self.paddle2.setSize(self.paddle_width, self.paddle_height)
+                self.paddle2.updatePaddle()
+
+                if self.sign > 0:
+                    self.paddle2.setZ(self.pf_depth)
+                else:
+                    self.paddle1.setZ(self.pf_depth)
+
+                self.ball.setGuideRectangle(self.pf_width, self.pf_height)
+                self.ball.updateBall()
+                self.ball.setPosition(0, 0, self.pf_depth/2)
+
+                width  = self.pf_width  + 2 * self.MARGIN
+                height = self.pf_height + 2 * self.MARGIN
+
+                self.scene.setSceneRect(-width/2, -height/2, width, height)
+                self.fitInView(self.scene.sceneRect(), Qt.KeepAspectRatio)
+
+            except ValueError:
+                print('error: Value sent at "{}" is not a number'.format(topic))
+
+        elif subt[2] == 'request' and (self.paddle1Control or self.paddle2Control):
+            # Testing paddle control enabled
+            x  = self.sign * self.pos.x()
+            y  = self.pos.y()
+            vx = x - self.sign * self.prev.x()
+            vy = y - self.prev.y()
+            if self.paddle1Control and item == "paddle1":
+                self.client.m_client.publish("/pong3d/paddle1/response/x",  int( x).to_bytes(4, 'little', signed=True))
+                self.client.m_client.publish("/pong3d/paddle1/response/y",  int( y).to_bytes(4, 'little', signed=True))
+                self.client.m_client.publish("/pong3d/paddle1/response/vx", int(vx).to_bytes(4, 'little', signed=True))
+                self.client.m_client.publish("/pong3d/paddle1/response/vy", int(vy).to_bytes(4, 'little', signed=True))
+            elif self.paddle2Control and item == "paddle2":
+                self.client.m_client.publish("/pong3d/paddle2/response/x",  int( x).to_bytes(4, 'little', signed=True))
+                self.client.m_client.publish("/pong3d/paddle2/response/y",  int( y).to_bytes(4, 'little', signed=True))
+                self.client.m_client.publish("/pong3d/paddle2/response/vx", int(vx).to_bytes(4, 'little', signed=True))
+                self.client.m_client.publish("/pong3d/paddle2/response/vy", int(vy).to_bytes(4, 'little', signed=True))
+
+        else:
+            # Change item coordinates
+            item  = subt[1]
             try:
                 val = int.from_bytes(msg, "little", signed=True)
                 coord = subt[2]
@@ -240,21 +310,6 @@ class PongView(QGraphicsView):
             except ValueError:
                 print('error: Value sent at "{}" is not a number'.format(topic))
 
-        elif self.paddle1Control or self.paddle2Control:
-            x  = self.sign * self.pos.x()
-            y  = self.pos.y()
-            vx = x - self.sign * self.prev.x()
-            vy = y - self.prev.y()
-            if self.paddle1Control and item == "paddle1":
-                self.client.m_client.publish("/pong3d/paddle1/response/x",  int( x).to_bytes(4, 'little', signed=True))
-                self.client.m_client.publish("/pong3d/paddle1/response/y",  int( y).to_bytes(4, 'little', signed=True))
-                self.client.m_client.publish("/pong3d/paddle1/response/vx", int(vx).to_bytes(4, 'little', signed=True))
-                self.client.m_client.publish("/pong3d/paddle1/response/vy", int(vy).to_bytes(4, 'little', signed=True))
-            elif self.paddle2Control and item == "paddle2":
-                self.client.m_client.publish("/pong3d/paddle2/response/x",  int( x).to_bytes(4, 'little', signed=True))
-                self.client.m_client.publish("/pong3d/paddle2/response/y",  int( y).to_bytes(4, 'little', signed=True))
-                self.client.m_client.publish("/pong3d/paddle2/response/vx", int(vx).to_bytes(4, 'little', signed=True))
-                self.client.m_client.publish("/pong3d/paddle2/response/vy", int(vy).to_bytes(4, 'little', signed=True))
 
     def update(self):
         if self.mqttState == MqttClient.Connected:

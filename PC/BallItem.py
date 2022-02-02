@@ -3,7 +3,7 @@ from PySide6.QtCore    import *
 from PySide6.QtGui     import *
 
 class BallItem(QGraphicsItemGroup):
-    def __init__(self, parent=None):
+    def __init__(self):
         super(BallItem, self).__init__()
         self.useGuideRectangle = False
         self.x = 0
@@ -69,7 +69,7 @@ class BallItem(QGraphicsItemGroup):
         self.useGuideRectangle = False
 
     def initBall(self):
-        self.ellipse = QGraphicsEllipseItem(self.x - self.r, self.y - self.r, self.r * 2, self.r * 2)
+        self.ellipse = QGraphicsEllipseItem(self.x - self.r, self.y - self.r, self.r * 2, self.r * 2, parent=self)
         self.ellipse.setBrush(self.color)
         self.addToGroup(self.ellipse)
 
@@ -82,7 +82,13 @@ class BallItem(QGraphicsItemGroup):
             self.addToGroup(self.guideRect)
 
     def updateBall(self):
-        pass
+        self.clearBall()
+        self.initBall()
+        self.update()
 
     def clearBall(self):
-        pass
+        self.removeFromGroup(self.ellipse)
+        self.scene().removeItem(self.ellipse)
+        if(self.useGuideRectangle):
+            self.removeFromGroup(self.guideRect)
+            self.scene().removeItem(self.guideRect)

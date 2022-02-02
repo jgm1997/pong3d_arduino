@@ -8,7 +8,7 @@ class PlayfieldItem(QGraphicsItemGroup):
     Y_DIVISIONS = 2
     Z_DIVISIONS = 4
 
-    def __init__(self, parent=None):
+    def __init__(self):
         super(PlayfieldItem, self).__init__()
 
     def setDimensions(self, width, height, depth):
@@ -89,7 +89,15 @@ class PlayfieldItem(QGraphicsItemGroup):
             self.rects.append(rectangle)
 
     def updatePlayfield(self):
-        pass
+        self.clearPlayfield()
+        self.initPlayfield()
+        self.update()
 
     def clearPlayfield(self):
-        pass
+        for item in self.lines + self.rects:
+            self.removeFromGroup(item)
+            self.scene().removeItem(item)
+
+        self.lines = []
+        self.rects = []
+
