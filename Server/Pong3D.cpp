@@ -8,21 +8,24 @@ Pong3D::Pong3D(){
     this->playersConnected = 0;
     this->playersReady = 0;
 
-    this->ballSpeedIncrement = 2;
+    this->ballSpeedIncrement = 1;
     this->ballPosition = coord_t{0, 0, 0};
-    this->ballVelocity = velocity_t{1, 1, -1};
+    this->ballVelocity = velocity_t{1, 1, -2};
     this->ballRadius   = 10;
 
     this->paddleWidth  = 500/5;
     this->paddleHeight = 300/5;
 
-    this->target       = 6;
+    this->target = 6;
     this->initialBallSpeed = 8;
 }
 
 // Game flow
-uint8_t Pong3D::playerConnected(){
-    uint8_t id = this->playersConnected;
+int8_t Pong3D::playerConnected(){
+    if(this->playersConnected == 2) {
+        return -1;
+    }
+    int8_t id = this->playersConnected;
     this->playersConnected++;
     if(this->playersConnected == 2) {
         this->gameState = GAME_READY;
@@ -30,8 +33,12 @@ uint8_t Pong3D::playerConnected(){
     return id;
 }
 
-void Pong3D::playerReady(){
-    this->playersReady++;
+int8_t Pong3D::playerReady(){
+    if(this->playersReady == 2) {
+        // Already 2
+        return -1;
+    }
+    int8_t readies = this->playersReady++;
     if(this->playersReady == 2) {
         // Start game
         this->score1 = 0;
@@ -39,6 +46,7 @@ void Pong3D::playerReady(){
         resetPosition(0);
         this->gameState = GAME_PLAYING;
     }
+    return readies;
 }
 
 gameevent_t Pong3D::updateGame(){
@@ -125,7 +133,7 @@ void Pong3D::fixPosition(){
         ballPosition.z = 2*(BOUND_BACK - r) - ballPosition.z;
 }
 
-bool Pong3D::computePaddleCollision(int32_t px, int32_t py, int32_t pvx, int32_t pvy, uint8_t paddle){
+int8_t Pong3D::computePaddleCollision(int32_t px, int32_t py, int32_t pvx, int32_t pvy, uint8_t paddle){
     // Get paddle borders
     const int32_t paddleUp    = py + (int32_t) paddleHeight / 2;
     const int32_t paddleDown  = py - (int32_t) paddleHeight / 2;
@@ -143,11 +151,12 @@ bool Pong3D::computePaddleCollision(int32_t px, int32_t py, int32_t pvx, int32_t
         int32_t new_vx = ballVelocity.vx + pvx;
         int32_t new_vy = ballVelocity.vy + pvy;
         ballVelocity.deduceZ(ballSpeed, new_vx, new_vy);
-        return true;
+        return -1;
     } else {
-        score(paddle ? 0 : 1);
-        resetPosition(paddle);
-        return false;
+        int8_t scr_paddle = paddle ? 0 : 1; // player who scores (invert)
+        score(scr_paddle);
+        resetPosition(paddle); // towards player who lost point
+        return scr_paddle;
     }
 }
 
@@ -162,6 +171,14 @@ velocity_t Pong3D::getBallVelocity(){
 
 gamestate_t Pong3D::getGameState(){
     return this->gameState;
+}
+
+uint8_t Pong3D::getPlayersConnected() {
+    return this->playersConnected;
+}
+
+uint8_t Pong3D::getPlayersReady() {
+    return this->playersReady;
 }
 
 uint8_t Pong3D::getScore1() {
@@ -200,7 +217,7 @@ void Pong3D::score(uint8_t player) {
 
 void Pong3D::resetPosition(uint8_t paddle) {
     this->ballPosition = coord_t{0, 0, (BOUND_FRONT + BOUND_BACK)/2};
-    this->ballVelocity = paddle ? velocity_t{1, 1, 1} : velocity_t{1, 1, -1};
+    this->ballVelocity = paddle ? velocity_t{1, 1, 2} : velocity_t{1, 1, -2};
     this->ballSpeed = this->initialBallSpeed;
     this->ballVelocity.setSpeed(this->initialBallSpeed);
 }

@@ -46,6 +46,7 @@ PubSubClient mqttClient(ethClient);
 void callback(char *topic, byte *payload, unsigned int length);
 void reconnect();
 void lcdPrintScore();
+void pubishSetup();
 
 // Publish topics
 #define TOPIC_BALL_X "/pong3d/ball/x"
@@ -54,12 +55,19 @@ void lcdPrintScore();
 
 #define TOPIC_P1_REQ "/pong3d/paddle1/request"
 #define TOPIC_P2_REQ "/pong3d/paddle2/request"
+#define TOPIC_P1_SCORE "/pong3d/paddle1/score"
+#define TOPIC_P2_SCORE "/pong3d/paddle2/score"
 
 #define TOPIC_PF_WIDTH  "/pong3d/playfield/width"
 #define TOPIC_PF_HEIGHT "/pong3d/playfield/height"
 #define TOPIC_PF_DEPTH  "/pong3d/playfield/depth"
 
 #define TOPIC_ASSIGN "/pong3d/player_id"
+
+#define TOPIC_SETUP_WIDTH  "/pong3d/game_setup/width"
+#define TOPIC_SETUP_HEIGHT "/pong3d/game_setup/height"
+#define TOPIC_SETUP_DEPTH  "/pong3d/game_setup/depth"
+#define TOPIC_SETUP_TARGET "/pong3d/game_setup/target"
 
 // Subscribe topics
 #define TOPIC_RESPONSE  "/pong3d/+/response/#"
@@ -82,6 +90,11 @@ struct response_t {
         vy_set = false;
     }
 } response;
+
+// Player registers (index 0 or 1 means paddle1 or paddle2)
+#define CLIENT_ID_SIZE 50
+char*   pl_con[2];
+uint8_t pl_rdy;
 
 // Pong3D logic
 Pong3D p3d;
@@ -193,11 +206,24 @@ void loop() {
     /** STATE GAME_READY ******************************************************/
     /**************************************************************************/
     if(p3d.getGameState() == GAME_READY) {
+        pl_rdy = 0;
+
         lcd.clear();
         lcd.print(
             "   Game ready   "
             "                "
         );
+        
+        // CAMBIAR CUANDO TENGAMOS LA INTEGRACIÓN DEL MENÚ EN EL READY
+        // (o en el waiting)
+        // Se debe activar cada vez que se hayan actualizado los valores en la
+        // estructura currentValues.
+        p3d.setDimensions(
+            currentValues.width, currentValues.height, currentValues.depth
+        );
+        p3d.setInitialBallSpeed(currentValues.speed);
+        publishSetup();
+
     } while(p3d.getGameState() == GAME_READY) {
         // Esperar a que los jugadores den su visto bueno (callback)
         mqttClient.loop();
@@ -213,6 +239,9 @@ void loop() {
             "     Start!     "
             "                "
         );
+        const uint8_t score = 0;
+        pub_ok  = mqttClient.publish(TOPIC_P1_SCORE, &score, 1);
+        pub_ok &= mqttClient.publish(TOPIC_P2_SCORE, &score, 1);
         delay(1000);
         lcdPrintScore();
     } while(p3d.getGameState() == GAME_PLAYING) {
@@ -285,9 +314,9 @@ void loop() {
 /******************************************************************************/
 
 void callback(char *topic, byte *payload, unsigned int length) {
-    //Serial.print("Message received from [ ");
-    //Serial.print(topic);
-    //Serial.println(" ]");
+    Serial.print("Message received from [ ");
+    Serial.print(topic);
+    Serial.println(" ]");
     
     // Tokenize topic string
     char* token;
@@ -302,33 +331,83 @@ void callback(char *topic, byte *payload, unsigned int length) {
     // Se da por hecho que params[0] == "pong3d"
     
     if( // Topic is /pong3d/connected
-        strcmp(params[1], "connected") == 0 && 
-        p3d.getGameState() == GAME_WAITING
+        strcmp(params[1], "connected") == 0
     ) {
-        char* id = (char *) malloc(2);
-        p3d.playerConnected() == 0 ? strcpy(id, "1") : strcpy(id, "2");
-        pub_ok = mqttClient.publish(TOPIC_ASSIGN, id);
-        
-        sprintf(str,
-            "   Player %s     "
-            "   connected    ",
-            id
-        );
-        lcd.clear();
-        lcd.print(str);
+        char* recv_id = (char *) malloc(CLIENT_ID_SIZE);
+        char* resp_id = (char *) malloc(2);
+        memcpy(recv_id, payload, length);
+        recv_id[length] = '\0';
 
-    } else if( // Topic is /pong3d/ready
+        uint8_t connected = p3d.getPlayersConnected();
+
+        // Consultar si el jugador se ha reconectado 
+        // o no permitido si ya había 2 jugadores
+        uint8_t idx = 0;
+        while(idx < connected) {
+            if(strcmp(pl_con[idx], recv_id) == 0) break;
+            idx++;
+        }
+        
+        sprintf(resp_id, "%d", idx+1); // 0 -> "1", 1 -> "2"
+
+        if(idx != connected) {
+            // Reasignar ID de la paleta al jugador reconectado
+            pub_ok = mqttClient.publish(TOPIC_ASSIGN, resp_id);
+            free(recv_id);
+
+        } else if (connected < 2) {
+            // Nuevo jugador habilitado
+            p3d.playerConnected();
+            pl_con[idx] = recv_id;
+            pub_ok = mqttClient.publish(TOPIC_ASSIGN, resp_id);
+            
+            sprintf(str,
+                "   Player %s     "
+                "   connected    ",
+                resp_id
+            );
+            lcd.clear();
+            lcd.print(str);
+        }
+        // else: Jugador no permitido, máximo alcanzado
+
+        free(resp_id);
+
+    } else if( // Topic is /pong3d/ready on GAME_READY
         strcmp(params[1], "ready") == 0 &&
         p3d.getGameState() == GAME_READY
     ) {
-        p3d.playerReady();
-        sprintf(str,
-            "   Player %c     "
-            "     ready      ",
-            payload[0]
-        );
-        lcd.clear();
-        lcd.print(str);
+        char* recv_id = (char *) malloc(CLIENT_ID_SIZE);
+        char* resp_id = (char *) malloc(2);
+        memcpy(recv_id, payload, length);
+        recv_id[length] = '\0';
+
+        uint8_t idx = 0;
+        while(idx < 2) {
+            if(strcmp(pl_con[idx], recv_id) == 0) break;
+            idx++;
+        }
+
+        sprintf(resp_id, "%d", idx+1); // 0 -> "1", 1 -> "2"
+        
+        if(idx < 2) {
+            if((pl_rdy & (1 << idx)) == 0) {
+                pl_rdy |= (1 << idx);
+
+                p3d.playerReady();
+                sprintf(str,
+                    "   Player %s     "
+                    "     ready      ",
+                    resp_id
+                );
+                lcd.clear();
+                lcd.print(str);
+            }
+            // else: player already ready
+        }
+        
+        free(recv_id);
+        free(resp_id);
 
     } else if( // Topic is /pong3d/+/response
         strcmp(params[2], "response") == 0 &&
@@ -357,19 +436,30 @@ void callback(char *topic, byte *payload, unsigned int length) {
         
         // Esperar a que se hayan recibido todos los valores de la paleta
         if(response.checkAll()) {
-            if(!p3d.computePaddleCollision(
-                response.x, response.y, response.vx, response.vy, paddle)
-            ) {
+            int8_t result = p3d.computePaddleCollision(
+                response.x, response.y, response.vx, response.vy, paddle);
+            // -1 si detecta colisión
+            // 0 o 1 dependiendo del jugador que anota en caso contrario
+            if(result != -1) {
                 lcdPrintScore();
+                uint8_t score;
+                if(result == 0) {
+                    score = p3d.getScore1();
+                    pub_ok = mqttClient.publish(TOPIC_P1_SCORE, &score, 1);
+                } else if (result == 1) {
+                    score = p3d.getScore2();
+                    pub_ok = mqttClient.publish(TOPIC_P2_SCORE, &score, 1);
+                }
             }
             response.setAllFalse();
             game_event = NO_EVENT;
         }
         
-    } else if(
+    } else if( // Topic is /pong3d/ready on GAME_OVER
         strcmp(params[1], "ready") == 0 &&
         p3d.getGameState() == GAME_OVER
     ) {
+        // Revancha
         p3d.resetGame();
     }
 }
@@ -456,4 +546,24 @@ void lcdPrintWinner() {
 
     lcd.moveCursor(2,17);
    
+}
+
+void publishSetup() {
+    memcpy(msg, &currentValues.width, 4);
+    pub_ok  = mqttClient.publish(TOPIC_SETUP_WIDTH, msg, 4);
+
+    memcpy(msg, &currentValues.height, 4);
+    pub_ok  = mqttClient.publish(TOPIC_SETUP_HEIGHT, msg, 4);
+
+    memcpy(msg, &currentValues.depth, 4);
+    pub_ok  = mqttClient.publish(TOPIC_SETUP_DEPTH, msg, 4);
+
+    uint8_t target = p3d.getTarget();
+    pub_ok  = mqttClient.publish(TOPIC_SETUP_TARGET, &target, 1);
+
+    if (pub_ok) {
+        Serial.println("All setup messages published");
+    } else {
+        Serial.println("Some setup messages couldn't be Published");
+    }
 }

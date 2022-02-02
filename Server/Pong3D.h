@@ -86,8 +86,8 @@ class Pong3D {
         Pong3D();
         
         // Game flow
-        uint8_t playerConnected();
-        void playerReady();
+        int8_t playerConnected();
+        int8_t playerReady();
         gameevent_t updateGame();
         void resetGame();
         void endGame(uint8_t winner);
@@ -102,7 +102,7 @@ class Pong3D {
         void invertVelocityZ();
         void fixPosition();
 
-        bool computePaddleCollision(int32_t px, int32_t py, int32_t pvx, int32_t pvy, uint8_t paddle);
+        int8_t computePaddleCollision(int32_t px, int32_t py, int32_t pvx, int32_t pvy, uint8_t paddle);
         void resetPosition(uint8_t paddle);
         
         // Getters
@@ -110,6 +110,8 @@ class Pong3D {
         velocity_t getBallVelocity();
         
         gamestate_t getGameState();
+        uint8_t getPlayersConnected();
+        uint8_t getPlayersReady();
         
         uint8_t getScore1();
         uint8_t getScore2();
