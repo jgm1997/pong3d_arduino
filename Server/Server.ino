@@ -68,6 +68,7 @@ void pubishSetup();
 #define TOPIC_SETUP_HEIGHT "/pong3d/game_setup/height"
 #define TOPIC_SETUP_DEPTH  "/pong3d/game_setup/depth"
 #define TOPIC_SETUP_TARGET "/pong3d/game_setup/target"
+#define TOPIC_SETUP_STATE  "/pong3d/game_setup/state"
 
 // Subscribe topics
 #define TOPIC_RESPONSE  "/pong3d/+/response/#"
@@ -174,6 +175,8 @@ void setup() {
 }
 
 
+gamestate_t curstate;
+
 /******************************************************************************/
 /** LOOP **********************************************************************/
 /******************************************************************************/
@@ -186,6 +189,8 @@ void loop() {
     /** STATE GAME_WAITING ****************************************************/
     /**************************************************************************/
     if(p3d.getGameState() == GAME_WAITING) {
+        curstate = p3d.getGameState();
+        mqttClient.publish(TOPIC_SETUP_STATE, (uint8_t *) &curstate, 1, true);
         lcd.clear();
         lcd.print(
             "  Waiting for   "
@@ -206,6 +211,8 @@ void loop() {
     /** STATE GAME_READY ******************************************************/
     /**************************************************************************/
     if(p3d.getGameState() == GAME_READY) {
+        curstate = p3d.getGameState();
+        mqttClient.publish(TOPIC_SETUP_STATE, (uint8_t *) &curstate, 1, true);
         pl_rdy = 0;
 
         lcd.clear();
@@ -234,6 +241,8 @@ void loop() {
     /** STATE GAME_PLAYING ****************************************************/
     /**************************************************************************/
     if(p3d.getGameState() == GAME_PLAYING) {
+        curstate = p3d.getGameState();
+        mqttClient.publish(TOPIC_SETUP_STATE, (uint8_t *) &curstate, 1, true);
         lcd.clear();
         lcd.print(
             "     Start!     "
@@ -297,6 +306,8 @@ void loop() {
     /** STATE GAME_OVER *******************************************************/
     /**************************************************************************/
     if(p3d.getGameState() == GAME_OVER) {
+        curstate = p3d.getGameState();
+        mqttClient.publish(TOPIC_SETUP_STATE, (uint8_t *) &curstate, 1, true);
         delay(500);
         lcd.clear();
         lcdPrintWinner();
@@ -550,16 +561,16 @@ void lcdPrintWinner() {
 
 void publishSetup() {
     memcpy(msg, &currentValues.width, 4);
-    pub_ok  = mqttClient.publish(TOPIC_SETUP_WIDTH, msg, 4);
+    pub_ok  = mqttClient.publish(TOPIC_SETUP_WIDTH, msg, 4, true);
 
     memcpy(msg, &currentValues.height, 4);
-    pub_ok  = mqttClient.publish(TOPIC_SETUP_HEIGHT, msg, 4);
+    pub_ok  = mqttClient.publish(TOPIC_SETUP_HEIGHT, msg, 4, true);
 
     memcpy(msg, &currentValues.depth, 4);
-    pub_ok  = mqttClient.publish(TOPIC_SETUP_DEPTH, msg, 4);
+    pub_ok  = mqttClient.publish(TOPIC_SETUP_DEPTH, msg, 4, true);
 
     uint8_t target = p3d.getTarget();
-    pub_ok  = mqttClient.publish(TOPIC_SETUP_TARGET, &target, 1);
+    pub_ok  = mqttClient.publish(TOPIC_SETUP_TARGET, &target, 1, true);
 
     if (pub_ok) {
         Serial.println("All setup messages published");

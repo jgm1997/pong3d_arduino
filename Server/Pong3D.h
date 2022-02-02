@@ -84,6 +84,8 @@ enum gameevent_t {
 class Pong3D {
     public:
         Pong3D();
+
+        const char *gamestate_string[4];
         
         // Game flow
         int8_t playerConnected();
