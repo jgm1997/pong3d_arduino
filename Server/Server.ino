@@ -165,12 +165,6 @@ void setup() {
     timer_k.setTime(TIME_K_MS);
     timer_k.load();
     
-    // Pong3D
-    p3d.setDimensions(
-        currentValues.width, currentValues.height, currentValues.depth
-    );
-    p3d.setInitialBallSpeed(currentValues.speed);
-    
     // From Menu.h
     initMenu();
     
@@ -582,6 +576,8 @@ void reconnect() {
                 Serial.println("No se pudo suscribir a todos los tópicos");
                 Serial.println("  Comprueba la sintaxis de las cadenas");
             }
+            
+            updateValues();
             
             delay(1000);
         } else {

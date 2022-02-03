@@ -9,7 +9,6 @@ from MqttClient    import MqttClient
 class Helper(QDialog):
     paddleControlSignal = Signal(bool, bool)
 
-    IDS = ['test1', 'test2']
     def __init__(self, parent=None):
         super(Helper, self).__init__()
         self.setWindowTitle('Auxiliar')
@@ -23,13 +22,16 @@ class Helper(QDialog):
         self.client.connectToHost()
 
         # Buttons
+        label6 = QLabel("Client ID:")
+        self.txt_input = QLineEdit("test1")
+        self.txt_input.deselect()
+
         label = QLabel("Publica en uno de estos tópicos:")
 
         self.conBut = QPushButton("Connected")
         self.rdyBut = QPushButton("Ready")
         self.pd1RespBut = QPushButton("Paddle 1 response")
         self.pd2RespBut = QPushButton("Paddle 2 response")
-        self.client_id = 0
 
         label2 = QLabel("Asignación de ID al jugador:")
         self.assignSwitch = False
@@ -57,6 +59,13 @@ class Helper(QDialog):
         self.p2ControlButton.clicked.connect(self.switchP2Control)
 
         # Layout
+        hlayout = QHBoxLayout()
+        hlayout.addWidget(label6)
+        hlayout.addWidget(self.txt_input)
+        hlframe = QFrame()
+        hlframe.setFrameStyle(QFrame.Box | QFrame.Raised)
+        hlframe.setLayout(hlayout)
+
         vlayout1 = QVBoxLayout()
         vlayout1.addWidget(label)
         vlayout1.addWidget(self.conBut)
@@ -85,20 +94,19 @@ class Helper(QDialog):
         gl1frame.setLayout(glayout1)
 
         glayout2 = QGridLayout()
-        glayout2.addWidget(vl1frame, 0,0,2,1)
-        glayout2.addWidget(vl2frame, 0,1)
-        glayout2.addWidget(gl1frame, 1,1)
+        glayout2.addWidget(hlframe,  0,0,1,2)
+        glayout2.addWidget(vl1frame, 1,0,2,1)
+        glayout2.addWidget(vl2frame, 1,1)
+        glayout2.addWidget(gl1frame, 2,1)
 
         self.setLayout(glayout2)
         self.setFixedSize(self.sizeHint())
 
     def sendConnected(self):
-        self.client.m_client.publish("/pong3d/connected", Helper.IDS[self.client_id % 2])
-        self.client_id += 1
+        self.client.m_client.publish("/pong3d/connected", self.txt_input.text())
 
     def sendReady(self):
-        self.client.m_client.publish("/pong3d/ready", Helper.IDS[self.client_id % 2])
-        self.client_id += 1
+        self.client.m_client.publish("/pong3d/ready", self.txt_input.text())
 
     def sendResponse(self, paddle1):
         topic = '/pong3d/paddle{}/response/'.format(2 if paddle1 else 1)
