@@ -231,8 +231,10 @@ class PongView(QGraphicsView):
 
                 if self.sign > 0:
                     self.paddle2.setZ(self.pf_depth)
+                    self.depth = 0
                 else:
                     self.paddle1.setZ(self.pf_depth)
+                    self.depth = self.pf_depth
 
                 self.ball.setGuideRectangle(self.pf_width, self.pf_height)
                 self.ball.updateBall()
