@@ -171,10 +171,8 @@ void setup() {
     );
     p3d.setInitialBallSpeed(currentValues.speed);
     
-    // From Menu.cpp
-    valueIntroduced = 0;
-    oks = 0;
-    p_aux = NULL;
+    // From Menu.h
+    initMenu();
     
     // Keypad
 	keypad.initKeypad(
